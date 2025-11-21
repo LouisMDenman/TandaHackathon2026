@@ -1,0 +1,656 @@
+:root {
+  --bg-primary: #0a0e17;
+  --bg-card: #111827;
+  --bg-card-inner: #1a2332;
+  --bg-input: #0d1117;
+  --border-default: #2d3748;
+  --border-accent: #3b82f6;
+  --text-primary: #f9fafb;
+  --text-secondary: #e5e7eb;
+  --text-muted: #9ca3af;
+  --text-dim: #6b7280;
+  --accent-blue: #3b82f6;
+  --accent-cyan: #06b6d4;
+  --accent-green: #10b981;
+  --accent-red: #ef4444;
+  --accent-purple: #8b5cf6;
+  --card-radius: 16px;
+  --card-radius-sm: 12px;
+}
+
+/* PAGE */
+.root {
+  box-sizing: border-box;
+  min-height: 100vh;
+  padding: 24px 32px 40px;
+  background: var(--bg-primary);
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(59, 130, 246, 0.12), transparent),
+    radial-gradient(ellipse 60% 60% at 100% 0%, rgba(6, 182, 212, 0.08), transparent);
+  color: var(--text-primary);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* HEADER */
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.title {
+  font-size: 32px;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 4px;
+  letter-spacing: -0.02em;
+}
+
+.subtitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--accent-cyan);
+}
+
+.subtitleSmall {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* BALANCE PILL */
+.balance {
+  min-width: 240px;
+  padding: 18px 24px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #1e3a5f 0%, #1e40af 100%);
+  border: 1px solid rgba(59, 130, 246, 0.4);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.balanceLabel {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 600;
+}
+
+.balanceValue {
+  font-size: 24px;
+  font-weight: 700;
+  color: #fff;
+  margin-top: 2px;
+}
+
+/* TABS */
+.tabs {
+  margin-top: 4px;
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
+  align-self: flex-start;
+}
+
+.tabButton {
+  padding: 8px 20px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tabButton:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.tabButtonActive {
+  background: var(--accent-blue);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+}
+
+/* ADD TICKER BAR */
+.addSymbolBar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 500px;
+}
+
+.addSymbolInputWrapper {
+  position: relative;
+  flex: 1;
+}
+
+.addSymbolIcon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 14px;
+  color: var(--text-dim);
+}
+
+.addSymbolInput {
+  width: 100%;
+  padding: 12px 16px 12px 40px;
+  border-radius: 10px;
+  border: 1px solid var(--border-default);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 14px;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.addSymbolInput::placeholder {
+  color: var(--text-dim);
+}
+
+.addSymbolInput:focus {
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.addSymbolButton {
+  padding: 12px 24px;
+  border-radius: 10px;
+  border: none;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  background: var(--accent-green);
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.4);
+  transition: all 0.2s ease;
+}
+
+.addSymbolButton:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.5);
+}
+
+.addSymbolButton:active {
+  transform: translateY(0);
+}
+
+/* MAIN GRID */
+.grid {
+  display: grid;
+  grid-template-columns: 280px 1fr 320px;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+/* CARD SHELL – now white with light border */
+.tickers,
+.tradeArea,
+.historyList,
+.chartsSidebar,
+.chartsMain {
+  border-radius: var(--card-radius);
+  padding: 20px;
+  background: #ffffff;              /* <-- white cards */
+  border: 1px solid #e5e7eb;        /* <-- light grey border */
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+  color: #000;
+}
+
+/* Make all text inside these cards black */
+.tickers *,
+.tradeArea *,
+.historyList *,
+.chartsSidebar *,
+.chartsMain * {
+  color: #000;
+}
+
+/* SECTION TITLES */
+.sectionTitle {
+  margin: 0 0 6px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  font-weight: 700;
+  color: var(--accent-cyan);
+}
+
+.sectionHelp {
+  margin: 0 0 16px;
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.sectionHelpSmall {
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.subSectionTitle {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+/* TICKER LIST */
+.tickerList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tickerItem {
+  padding: 14px 16px;
+  border-radius: var(--card-radius-sm);
+  background: var(--bg-card-inner);
+  border: 1px solid var(--border-default);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tickerItem:hover {
+  border-color: var(--accent-blue);
+  background: rgba(59, 130, 246, 0.1);
+  transform: translateX(4px);
+}
+
+.tickerItemDragging {
+  box-shadow: 0 12px 32px rgba(59, 130, 246, 0.3);
+  border-color: var(--accent-blue);
+}
+
+.tickerSymbol {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--accent-blue);
+}
+
+.tickerName {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.tickerPrice {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: right;
+}
+
+/* TRADE AREA */
+.tradeArea {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.tradeFormWrapper {
+  padding: 20px;
+  background: var(--bg-card-inner);
+  border-radius: var(--card-radius-sm);
+  border: 1px solid var(--border-default);
+}
+
+.tradeFormTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.tradeFormSubtitle {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+}
+
+.tradeFormRow {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.tradeFormLabel {
+  font-size: 13px;
+  color: var(--text-muted);
+  min-width: 80px;
+}
+
+.tradeFormValue {
+  font-size: 14px;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.tradeFormInput {
+  flex: 1;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border-default);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 14px;
+  outline: none;
+}
+
+.tradeFormInput:focus {
+  border-color: var(--accent-blue);
+}
+
+.tradeFormActions {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.buyButton {
+  flex: 1;
+  padding: 12px;
+  border-radius: 8px;
+  border: none;
+  background: var(--accent-green);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.buyButton:hover {
+  filter: brightness(1.1);
+}
+
+.sellButton {
+  flex: 1;
+  padding: 12px;
+  border-radius: 8px;
+  border: none;
+  background: var(--accent-red);
+  color: #fff;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.resetButton {
+  padding: 12px 20px;
+  border-radius: 8px;
+  border: 1px solid var(--border-default);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* PORTFOLIO */
+.portfolioWrapper {
+  padding: 20px;
+  background: var(--bg-card-inner);
+  border-radius: var(--card-radius-sm);
+  border: 1px solid var(--border-default);
+}
+
+.portfolioTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent-purple);
+}
+
+.portfolioSubtitle {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-bottom: 16px;
+}
+
+.portfolioTotal {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-default);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--accent-green);
+}
+
+/* HISTORY */
+.historyList {
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.historyList::-webkit-scrollbar {
+  width: 6px;
+}
+
+.historyList::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.historyList::-webkit-scrollbar-thumb {
+  background: var(--border-default);
+  border-radius: 3px;
+}
+
+.historyInner {
+  padding: 16px;
+  background: var(--bg-card-inner);
+  border-radius: var(--card-radius-sm);
+  border: 1px dashed var(--border-default);
+}
+
+.historyTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent-purple);
+  margin-bottom: 16px;
+}
+
+.historyItem {
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.historyItem:last-child {
+  border-bottom: none;
+}
+
+.historyDate {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.historyAction {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.historyBuy {
+  color: var(--accent-green);
+  font-weight: 700;
+}
+
+.historySell {
+  color: var(--accent-red);
+  font-weight: 700;
+}
+
+/* TABLES */
+.tradeArea table,
+.historyList table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.tradeArea th,
+.historyList th {
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+  padding: 8px 12px 12px;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.tradeArea td,
+.historyList td {
+  font-size: 13px;
+  color: var(--text-secondary);
+  padding: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.tradeArea tr:hover td,
+.historyList tr:hover td {
+  background: rgba(59, 130, 246, 0.05);
+}
+
+/* RESPONSIVE */
+@media (max-width: 1200px) {
+  .grid {
+    grid-template-columns: 260px 1fr;
+  }
+  .historyList {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 768px) {
+  .root {
+    padding: 16px;
+  }
+  .header {
+    flex-direction: column;
+    gap: 16px;
+  }
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/***************************************************/
+/* NEW RULES YOU REQUESTED (FONT + BORDERS)        */
+/***************************************************/
+
+/* Make ALL text inside all cards black */
+.tickers *,
+.tradeArea *,
+.historyList *,
+.chartsSidebar *,
+.chartsMain *,
+.tickerItem *,
+.tradeFormWrapper *,
+.portfolioWrapper *,
+.historyInner *,
+.chartCard * {
+  color: #000 !important;
+}
+
+/* Search bar border + black text */
+.addSymbolInput {
+  border: 2px solid #3b82f6 !important;
+  background: #ffffff !important;
+  color: #000 !important;
+}
+
+/* Dropdown border + black text (CSS Modules–safe) */
+:global(select),
+.dropdown,
+.dropdown * {
+  border: 2px solid #3b82f6 !important;
+  background: #ffffff !important;
+  color: #000 !important;
+
+  /***************************************************/
+/* LIGHT CARDS + FIX CHARTS PAGE                   */
+/***************************************************/
+
+/* 1. Make all main cards white with light borders */
+.tickers,
+.tradeArea,
+.historyList,
+.chartsSidebar,
+.chartsMain {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+}
+
+/* 2. Inner panels/pills also white with borders */
+.tickerItem,
+.tradeFormWrapper,
+.portfolioWrapper,
+.historyInner,
+.chartCard,
+.chartEmpty,
+.chartsSymbolRow {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+}
+
+/* 3. Hover states for ticker & chart symbol rows */
+.tickerItem:hover,
+.chartsSymbolRow:hover {
+  background: #f3f4f6;
+  border-color: #3b82f6;
+  transform: translateX(0); /* optional: keep them from shifting */
+}
+
+/* 4. Chart area styling (Charts tab) */
+.chartSvg {
+  background: #f9fafb;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+/* 5. Make sure text on charts page is black too */
+.chartsSidebar *,
+.chartsMain * {
+  color: #000 !important;
+}
+
+/* 6. Dropdown (CSS Modules–safe, keep this or what you already have) */
+:global(select),
+.dropdown,
+.dropdown * {
+  border: 2px solid #3b82f6 !important;
+  background: #ffffff !important;
+  color: #000 !important;
+}
+
+.portfolioTitle,
+.portfolioSubtitle {
+  color: #ffffff !important;
+}
+
+.tradeArea > * + * {
+  margin-top: 40px; /* adjust as needed */
+}
+}
