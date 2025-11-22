@@ -9,7 +9,7 @@
 
 **A stunning full-stack crypto & trading platform with real-time data, authentication, and beautiful UI**
 
-[Live Demo](#) • [Documentation](./DEPLOYMENT.md) • [Quick Deploy](./QUICK-DEPLOY.md)
+[Live Demo](#https://santaclaude2026tandahackathon.netlify.app/) • [Documentation](./DEPLOYMENT.md) • [Quick Deploy](./QUICK-DEPLOY.md)
 
 </div>
 
