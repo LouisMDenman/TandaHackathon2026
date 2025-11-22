@@ -1,0 +1,504 @@
+"use client"
+import React, { useEffect, useMemo, useState } from "react"
+import usePriceFeed from "./usePriceFeed"
+import TickerCard from "./components/TickerCard"
+import TradeForm from "./components/TradeForm"
+import Portfolio from "./components/Portfolio"
+import HistoryList from "./components/HistoryList"
+import styles from "./playground.module.css"
+
+export default function PlaygroundPage() {
+  const prices = usePriceFeed()
+
+  // Persisted play-money wallet and state
+  const [balance, setBalance] = useState<number>(() => {
+    try {
+      const raw = localStorage.getItem("sandbox_balance")
+      return raw ? JSON.parse(raw) : 100000
+    } catch {
+      return 100000
+    }
+  })
+
+  const [holdings, setHoldings] = useState<Record<string, { qty: number; avg: number }>>(() => {
+    try {
+      const raw = localStorage.getItem("sandbox_holdings")
+      return raw ? JSON.parse(raw) : {}
+    } catch {
+      return {}
+    }
+  })
+
+  const [history, setHistory] = useState<any[]>(() => {
+    try {
+      const raw = localStorage.getItem("sandbox_history")
+      return raw ? JSON.parse(raw) : []
+    } catch {
+      return []
+    }
+  })
+
+  useEffect(() => {
+    localStorage.setItem("sandbox_balance", JSON.stringify(balance))
+  }, [balance])
+
+  useEffect(() => {
+    localStorage.setItem("sandbox_holdings", JSON.stringify(holdings))
+  }, [holdings])
+
+  useEffect(() => {
+    localStorage.setItem("sandbox_history", JSON.stringify(history))
+  }, [history])
+
+  const symbols = useMemo(() => [
+    { symbol: "BTC", name: "Bitcoin", currency: "USD" },
+    { symbol: "CBA", name: "Commonwealth Bank", currency: "AUD" },
+    { symbol: "BHP", name: "BHP Group", currency: "AUD" },
+  ], [])
+
+  function executeTrade(payload: { symbol: string; side: "buy" | "sell"; qty: number; price: number }) {
+    const { symbol, side, qty, price } = payload
+    const cost = +(qty * price)
+    if (side === "buy") {
+      if (cost > balance) {
+        alert("Insufficient play balance")
+        return
+      }
+      setBalance(b => +((b - cost).toFixed(2)))
+      setHoldings(h => {
+        const prev = h[symbol] || { qty: 0, avg: 0 }
+        const newQty = prev.qty + qty
+        const newAvg = newQty === 0 ? 0 : ((prev.qty * prev.avg) + (qty * price)) / newQty
+        return { ...h, [symbol]: { qty: newQty, avg: +newAvg.toFixed(4) } }
+      })
+      setHistory(prev => [{ time: new Date().toISOString(), symbol, side, qty, price }, ...prev])
+    } else {
+      const prevHold = holdings[symbol] || { qty: 0, avg: 0 }
+      if (qty > prevHold.qty) {
+        alert("Insufficient holdings to sell")
+        return
+      }
+      setHoldings(h => {
+        const prev = h[symbol] || { qty: 0, avg: 0 }
+        const newQty = prev.qty - qty
+        const newHold = { ...h }
+        if (newQty <= 0) delete newHold[symbol]
+        else newHold[symbol] = { qty: newQty, avg: prev.avg }
+        return newHold
+      })
+      setBalance(b => +((b + cost).toFixed(2)))
+      setHistory(prev => [{ time: new Date().toISOString(), symbol, side, qty, price }, ...prev])
+    }
+  }
+
+  return (
+    <div className={styles.root}>
+      <header className={styles.header}>
+        <div>
+          <div className={styles.title}>Sandbox Playground — Play Money BTC & ASX</div>
+          <div style={{ fontSize: 12, color: '#64748b' }}>Experiment with mock market data and play money</div>
+        </div>
+
+        <div className={styles.balance}>
+          <strong>Balance</strong>
+          <div>{balance.toLocaleString(undefined, { style: 'currency', currency: 'USD' })}</div>
+        </div>
+      </header>
+
+      <main className={styles.grid}>
+        <section className={styles.tickers}>
+          {symbols.map(s => (
+            <TickerCard key={s.symbol} symbol={s.symbol} name={s.name} price={prices[s.symbol]} currency={s.currency} />
+          ))}
+        </section>
+
+        <section className={styles.tradeArea}>
+          <TradeForm symbols={symbols} prices={prices} onExecute={executeTrade} />
+          <Portfolio holdings={holdings} prices={prices} />
+        </section>
+
+        <aside className={styles.historyList}>
+          <HistoryList items={history} />
+        </aside>
+      </main>
+    </div>
+  )
+}
+
+"use client"
+import React, { useEffect, useMemo, useState } from "react"
+import usePriceFeed from "./usePriceFeed"
+import TickerCard from "./components/TickerCard"
+import TradeForm from "./components/TradeForm"
+import Portfolio from "./components/Portfolio"
+import HistoryList from "./components/HistoryList"
+import styles from "./playground.module.css"
+
+export default function PlaygroundPage() {
+  const prices = usePriceFeed()
+
+  // Persisted play-money wallet and state
+  const [balance, setBalance] = useState<number>(() => {
+    try {
+      const raw = localStorage.getItem("sandbox_balance")
+      return raw ? JSON.parse(raw) : 100000 // start with 100k play money
+    } catch {
+      return 100000
+    }
+  })
+
+  const [holdings, setHoldings] = useState<Record<string, { qty: number; avg: number }>>(() => {
+    try {
+      const raw = localStorage.getItem("sandbox_holdings")
+      return raw ? JSON.parse(raw) : {}
+    } catch {
+      return {}
+    }
+  })
+
+  const [history, setHistory] = useState<any[]>(() => {
+    try {
+      const raw = localStorage.getItem("sandbox_history")
+      return raw ? JSON.parse(raw) : []
+    } catch {
+      return []
+    }
+  })
+
+  useEffect(() => {
+    localStorage.setItem("sandbox_balance", JSON.stringify(balance))
+  }, [balance])
+
+  useEffect(() => {
+    localStorage.setItem("sandbox_holdings", JSON.stringify(holdings))
+  }, [holdings])
+
+  useEffect(() => {
+    localStorage.setItem("sandbox_history", JSON.stringify(history))
+  }, [history])
+
+  const symbols = useMemo(() => [
+    { symbol: "BTC", name: "Bitcoin", currency: "USD" },
+    { symbol: "CBA", name: "Commonwealth Bank", currency: "AUD" },
+    { symbol: "BHP", name: "BHP Group", currency: "AUD" },
+  ], [])
+
+  function executeTrade(payload: { symbol: string; side: "buy" | "sell"; qty: number; price: number }) {
+    const { symbol, side, qty, price } = payload
+    const cost = +((qty * price))
+    if (side === "buy") {
+      if (cost > balance) {
+        alert("Insufficient play balance")
+        return
+      }
+      setBalance(b => +((b - cost).toFixed(2)))
+      setHoldings(h => {
+        const prev = h[symbol] || { qty: 0, avg: 0 }
+        const newQty = prev.qty + qty
+        const newAvg = newQty === 0 ? 0 : ((prev.qty * prev.avg) + (qty * price)) / newQty
+        return { ...h, [symbol]: { qty: newQty, avg: +newAvg.toFixed(4) } }
+      })
+      setHistory(prev => [{ time: new Date().toISOString(), symbol, side, qty, price }, ...prev])
+    } else {
+      // sell
+      const prevHold = holdings[symbol] || { qty: 0, avg: 0 }
+      if (qty > prevHold.qty) {
+        alert("Insufficient holdings to sell")
+        return
+      }
+      setHoldings(h => {
+        const prev = h[symbol] || { qty: 0, avg: 0 }
+        const newQty = prev.qty - qty
+        const newHold = { ...h }
+        if (newQty <= 0) delete newHold[symbol]
+        else newHold[symbol] = { qty: newQty, avg: prev.avg }
+        return newHold
+      })
+      setBalance(b => +((b + cost).toFixed(2)))
+      setHistory(prev => [{ time: new Date().toISOString(), symbol, side, qty, price }, ...prev])
+    }
+  }
+
+  return (
+    <div className={styles.root}>
+      <header className={styles.header}>
+        <div>
+          <div className={styles.title}>Sandbox Playground — Play Money BTC & ASX</div>
+          <div style={{ fontSize: 12, color: '#64748b' }}>Experiment with mock market data and play money</div>
+        </div>
+
+        <div className={styles.balance}>
+          <strong>Balance</strong>
+          <div>{balance.toLocaleString(undefined, { style: 'currency', currency: 'USD' })}</div>
+        </div>
+      </header>
+
+      <main className={styles.grid}>
+        <section className={styles.tickers}>
+          {symbols.map(s => (
+            <TickerCard key={s.symbol} symbol={s.symbol} name={s.name} price={prices[s.symbol]} currency={s.currency} />
+          ))}
+        </section>
+
+        <section className={styles.tradeArea}>
+          <TradeForm symbols={symbols} prices={prices} onExecute={executeTrade} />
+          <Portfolio holdings={holdings} prices={prices} />
+        </section>
+
+        <aside className={styles.historyList}>
+          <HistoryList items={history} />
+        </aside>
+      </main>
+    </div>
+  )
+}
+import React, { useEffect, useMemo, useState } from "react"
+import usePriceFeed from "./usePriceFeed"
+import TickerCard from "./components/TickerCard"
+import TradeForm from "./components/TradeForm"
+import Portfolio from "./components/Portfolio"
+import HistoryList from "./components/HistoryList"
+import styles from "./playground.module.css"
+
+export default function PlaygroundPage() {
+  const prices = usePriceFeed()
+
+  // Persisted play-money wallet and state
+  const [balance, setBalance] = useState<number>(() => {
+    try {
+      const raw = localStorage.getItem("sandbox_balance")
+      return raw ? JSON.parse(raw) : 100000 // start with 100k play money
+    } catch {
+      return 100000
+    }
+  })
+
+  const [holdings, setHoldings] = useState<Record<string, { qty: number; avg: number }>>(() => {
+    try {
+      const raw = localStorage.getItem("sandbox_holdings")
+      return raw ? JSON.parse(raw) : {}
+    } catch {
+      return {}
+    }
+  })
+
+  const [history, setHistory] = useState<any[]>(() => {
+    try {
+      const raw = localStorage.getItem("sandbox_history")
+      return raw ? JSON.parse(raw) : []
+    } catch {
+      return []
+    }
+  })
+
+  useEffect(() => {
+    localStorage.setItem("sandbox_balance", JSON.stringify(balance))
+  }, [balance])
+
+  useEffect(() => {
+    localStorage.setItem("sandbox_holdings", JSON.stringify(holdings))
+  }, [holdings])
+
+  useEffect(() => {
+    localStorage.setItem("sandbox_history", JSON.stringify(history))
+  }, [history])
+
+  const symbols = useMemo(() => [
+    { symbol: "BTC", name: "Bitcoin", currency: "USD" },
+    { symbol: "CBA", name: "Commonwealth Bank", currency: "AUD" },
+    { symbol: "BHP", name: "BHP Group", currency: "AUD" },
+  ], [])
+
+  function executeTrade(payload: { symbol: string; side: "buy" | "sell"; qty: number; price: number }) {
+    const { symbol, side, qty, price } = payload
+    const cost = +((qty * price))
+    if (side === "buy") {
+      if (cost > balance) {
+        alert("Insufficient play balance")
+        return
+      }
+      setBalance(b => +((b - cost).toFixed(2)))
+      setHoldings(h => {
+        const prev = h[symbol] || { qty: 0, avg: 0 }
+        const newQty = prev.qty + qty
+        const newAvg = newQty === 0 ? 0 : ((prev.qty * prev.avg) + (qty * price)) / newQty
+        return { ...h, [symbol]: { qty: newQty, avg: +newAvg.toFixed(4) } }
+      })
+      setHistory(prev => [{ time: new Date().toISOString(), symbol, side, qty, price }, ...prev])
+    } else {
+      // sell
+      const prevHold = holdings[symbol] || { qty: 0, avg: 0 }
+      if (qty > prevHold.qty) {
+        alert("Insufficient holdings to sell")
+        return
+      }
+      setHoldings(h => {
+        const prev = h[symbol] || { qty: 0, avg: 0 }
+        const newQty = prev.qty - qty
+        const newHold = { ...h }
+        if (newQty <= 0) delete newHold[symbol]
+        else newHold[symbol] = { qty: newQty, avg: prev.avg }
+        return newHold
+      })
+      setBalance(b => +((b + cost).toFixed(2)))
+      setHistory(prev => [{ time: new Date().toISOString(), symbol, side, qty, price }, ...prev])
+    }
+  }
+
+  return (
+    <div className={styles.root}>
+      <header className={styles.header}>
+        <div>
+          <div className={styles.title}>Sandbox Playground — Play Money BTC & ASX</div>
+          <div style={{ fontSize: 12, color: '#64748b' }}>Experiment with mock market data and play money</div>
+        </div>
+
+        <div className={styles.balance}>
+          <strong>Balance</strong>
+          <div>{balance.toLocaleString(undefined, { style: 'currency', currency: 'USD' })}</div>
+        </div>
+      </header>
+
+      <main className={styles.grid}>
+        <section className={styles.tickers}>
+          {symbols.map(s => (
+            <TickerCard key={s.symbol} symbol={s.symbol} name={s.name} price={prices[s.symbol]} currency={s.currency} />
+          ))}
+        </section>
+
+        <section className={styles.tradeArea}>
+          <TradeForm symbols={symbols} prices={prices} onExecute={executeTrade} />
+          <Portfolio holdings={holdings} prices={prices} />
+        </section>
+
+        <aside className={styles.historyList}>
+          <HistoryList items={history} />
+        </aside>
+      </main>
+    </div>
+  )
+}
+import React, { useEffect, useMemo, useState } from "react"
+import usePriceFeed from "./usePriceFeed"
+import TickerCard from "./components/TickerCard"
+import TradeForm from "./components/TradeForm"
+import Portfolio from "./components/Portfolio"
+import HistoryList from "./components/HistoryList"
+import styles from "./playground.module.css"
+}
+
+  // Persisted play-money wallet and state
+  const [balance, setBalance] = useState<number>(() => {
+    try {
+      const raw = localStorage.getItem("sandbox_balance")
+      return raw ? JSON.parse(raw) : 100000 // start with 100k play money
+    } catch {
+      return 100000
+    }
+  })
+
+  const [holdings, setHoldings] = useState<Record<string, { qty: number; avg: number }>>(() => {
+    try {
+      const raw = localStorage.getItem("sandbox_holdings")
+      return raw ? JSON.parse(raw) : {}
+    } catch {
+      return {}
+    }
+  })
+
+  const [history, setHistory] = useState<any[]>(() => {
+    try {
+      const raw = localStorage.getItem("sandbox_history")
+      return raw ? JSON.parse(raw) : []
+    } catch {
+      return []
+    }
+  })
+
+  useEffect(() => {
+    localStorage.setItem("sandbox_balance", JSON.stringify(balance))
+  }, [balance])
+
+  useEffect(() => {
+    localStorage.setItem("sandbox_holdings", JSON.stringify(holdings))
+  }, [holdings])
+
+  useEffect(() => {
+    localStorage.setItem("sandbox_history", JSON.stringify(history))
+  }, [history])
+
+  const symbols = useMemo(() => [
+    { symbol: "BTC", name: "Bitcoin", currency: "USD" },
+    { symbol: "CBA", name: "Commonwealth Bank", currency: "AUD" },
+    { symbol: "BHP", name: "BHP Group", currency: "AUD" },
+  ], [])
+
+  function executeTrade(payload: { symbol: string; side: "buy" | "sell"; qty: number; price: number }) {
+    const { symbol, side, qty, price } = payload
+    const cost = +((qty * price))
+    if (side === "buy") {
+      if (cost > balance) {
+        alert("Insufficient play balance")
+        return
+      }
+      setBalance(b => +((b - cost).toFixed(2)))
+      setHoldings(h => {
+        const prev = h[symbol] || { qty: 0, avg: 0 }
+        const newQty = prev.qty + qty
+        const newAvg = newQty === 0 ? 0 : ((prev.qty * prev.avg) + (qty * price)) / newQty
+        return { ...h, [symbol]: { qty: newQty, avg: +newAvg.toFixed(4) } }
+      })
+      setHistory(prev => [{ time: new Date().toISOString(), symbol, side, qty, price }, ...prev])
+    } else {
+      // sell
+      const prevHold = holdings[symbol] || { qty: 0, avg: 0 }
+      if (qty > prevHold.qty) {
+        alert("Insufficient holdings to sell")
+        return
+      }
+      setHoldings(h => {
+        const prev = h[symbol] || { qty: 0, avg: 0 }
+        const newQty = prev.qty - qty
+        const newHold = { ...h }
+        if (newQty <= 0) delete newHold[symbol]
+        else newHold[symbol] = { qty: newQty, avg: prev.avg }
+        return newHold
+      })
+      setBalance(b => +((b + cost).toFixed(2)))
+      setHistory(prev => [{ time: new Date().toISOString(), symbol, side, qty, price }, ...prev])
+    }
+  }
+
+  return (
+    <div className={styles.root}> 
+      <header className={styles.header}>
+        <div>
+          <div className={styles.title}>Sandbox Playground — Play Money BTC & ASX</div>
+          <div style={{ fontSize: 12, color: '#64748b' }}>Experiment with mock market data and play money</div>
+        </div>
+
+        <div className={styles.balance}>
+          <strong>Balance</strong>
+          <div>{balance.toLocaleString(undefined, { style: 'currency', currency: 'USD' })}</div>
+        </div>
+      </header>
+
+      <main className={styles.grid}>
+        <section className={styles.tickers}>
+          {symbols.map(s => (
+            <TickerCard key={s.symbol} symbol={s.symbol} name={s.name} price={prices[s.symbol]} currency={s.currency} />
+          ))}
+        </section>
+
+        <section className={styles.tradeArea}>
+          <TradeForm symbols={symbols} prices={prices} onExecute={executeTrade} />
+          <Portfolio holdings={holdings} prices={prices} />
+        </section>
+
+        <aside className={styles.history}>
+          <HistoryList items={history} />
+        </aside>
+      </main>
+    </div>
+  )
+}
