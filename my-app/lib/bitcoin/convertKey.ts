@@ -53,7 +53,6 @@ export function convertToXpub(key: string, type: KeyType): string {
     // Encode back to Base58Check
     return bs58check.encode(converted);
   } catch (error) {
-    console.error('Key conversion failed:', error);
     throw new Error(`Failed to convert ${type} to xpub: ${error}`);
   }
 }
