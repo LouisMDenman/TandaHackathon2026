@@ -7,13 +7,9 @@ import { ETHEREUM_CONSTANTS } from './constants';
 import type { EthereumAddressInfo } from './types';
 
 /**
- * Simple keccak256 implementation using Web Crypto API
- * Note: For production, consider using js-sha3 library
- * This is a placeholder - we'll use a proper implementation
+ * keccak256 hash implementation using js-sha3 library
  */
 async function keccak256(data: string): Promise<string> {
-  // For now, we'll use a dynamic import to avoid bundling issues
-  // This will be replaced with js-sha3 or similar
   const { keccak_256 } = await import('js-sha3');
   return keccak_256(data);
 }

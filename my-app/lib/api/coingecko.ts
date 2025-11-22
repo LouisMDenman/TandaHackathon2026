@@ -338,18 +338,6 @@ export function satoshisToAUD(satoshis: number, price: number): number {
 }
 
 /**
- * Convert Wei to AUD
- *
- * @param wei Amount in Wei (as number or bigint)
- * @param price ETH price in AUD
- * @returns Amount in AUD
- */
-export function weiToAUD(wei: number | bigint, price: number): number {
-  const eth = Number(wei) / 1e18; // 1 ETH = 10^18 Wei
-  return convertETHToAUD(eth, price);
-}
-
-/**
  * Get cache age in seconds
  * Returns -1 if no cache exists
  *

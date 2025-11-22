@@ -36,10 +36,6 @@ export const ETHEREUM_CONSTANTS = {
   // Address format
   ADDRESS_LENGTH: 42,       // Including '0x' prefix
   ADDRESS_PREFIX: '0x',
-
-  // Display formatting
-  ETH_DECIMALS: 4,          // Default decimal places to show
-  MIN_DISPLAY_ETH: 0.0001,  // Minimum balance to display (below this show as "< 0.0001")
 };
 
 /**

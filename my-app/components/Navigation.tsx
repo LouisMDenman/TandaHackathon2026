@@ -29,7 +29,7 @@ export default function Navigation() {
               <span className="text-white font-bold text-lg">₿</span>
             </div>
             <span className="font-semibold text-gray-900 text-lg hidden sm:block">
-              Bitcoin Tools
+              Crypto Tools
             </span>
           </Link>
 
