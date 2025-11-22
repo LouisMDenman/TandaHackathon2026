@@ -1,13 +1,15 @@
 /**
- * Tests for CoinGecko API (Ethereum and Solana additions)
- * Testing ETH and SOL price fetching, conversion, and formatting
+ * Tests for CoinGecko API (Ethereum, Solana, and Tether additions)
+ * Testing ETH, SOL, and USDT price fetching, conversion, and formatting
  */
 
 import {
   fetchETHPrice,
   fetchSOLPrice,
+  fetchUSDTPrice,
   convertETHToAUD,
   convertSOLToAUD,
+  convertUSDTToAUD,
   formatCurrency,
 } from '../coingecko';
 
@@ -514,6 +516,327 @@ describe('formatCurrency', () => {
       expect(sol).toContain('SOL');
       expect(sol).not.toContain('ETH');
       expect(sol).not.toContain('BTC');
+    });
+  });
+});
+
+describe('fetchUSDTPrice', () => {
+  let consoleWarnSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    (global.fetch as jest.Mock).mockClear();
+    // Advance time by 100 seconds to invalidate any cached data from previous tests
+    mockTime += 100000;
+    Date.now = jest.fn(() => mockTime);
+    // Suppress console.warn during tests that intentionally trigger errors
+    consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+  });
+
+  afterEach(() => {
+    // Restore console.warn after each test
+    consoleWarnSpy.mockRestore();
+  });
+
+  it('should fetch USDT price successfully', async () => {
+    const mockPrice = 1.52; // USDT typically close to 1 AUD
+
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        tether: {
+          aud: mockPrice,
+        },
+      }),
+    });
+
+    const result = await fetchUSDTPrice();
+
+    expect(result.aud).toBe(mockPrice);
+    expect(result.timestamp).toBeDefined();
+    expect(typeof result.timestamp).toBe('number');
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('should make correct API call', async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        tether: { aud: 1.50 },
+      }),
+    });
+
+    await fetchUSDTPrice();
+
+    const fetchCall = (global.fetch as jest.Mock).mock.calls[0];
+    const [url] = fetchCall;
+
+    expect(url).toContain('coingecko.com');
+    expect(url).toContain('tether');
+    expect(url).toContain('vs_currencies=aud');
+  });
+
+  it('should cache price for 60 seconds', async () => {
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        tether: { aud: 1.51 },
+      }),
+    });
+
+    // First call
+    const firstResult = await fetchUSDTPrice();
+
+    // Second call (should use cache)
+    const secondResult = await fetchUSDTPrice();
+
+    expect(firstResult.aud).toBe(1.51);
+    expect(secondResult.aud).toBe(1.51);
+    expect(firstResult.timestamp).toBe(secondResult.timestamp);
+    expect(global.fetch).toHaveBeenCalledTimes(1); // Only called once due to cache
+  });
+
+  it('should fetch fresh price after cache expires', async () => {
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          tether: { aud: 1.50 },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          tether: { aud: 1.52 },
+        }),
+      });
+
+    // First call
+    const firstResult = await fetchUSDTPrice();
+    expect(firstResult.aud).toBe(1.50);
+
+    // Advance time beyond cache duration (61 seconds)
+    mockTime += 61000;
+
+    // Second call (cache expired, should fetch fresh)
+    const secondResult = await fetchUSDTPrice();
+    expect(secondResult.aud).toBe(1.52);
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('should use cached price as fallback on API error', async () => {
+    // First successful call
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        tether: { aud: 1.50 },
+      }),
+    });
+
+    const firstResult = await fetchUSDTPrice();
+    expect(firstResult.aud).toBe(1.50);
+
+    // Expire cache
+    mockTime += 61000;
+
+    // Second call fails, but should return cached value
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+    });
+
+    const secondResult = await fetchUSDTPrice();
+    expect(secondResult.aud).toBe(1.50); // Returns cached value
+    expect(consoleWarnSpy).toHaveBeenCalled();
+  });
+
+  it('should handle invalid response format by returning cached data', async () => {
+    // First, create a valid cache
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        tether: { aud: 1.50 },
+      }),
+    });
+
+    await fetchUSDTPrice(); // Cache it
+
+    // Advance time to expire cache
+    mockTime += 61000;
+
+    // Now provide invalid response - should return cached value
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        // Missing 'tether' key
+        other: { aud: 1.50 },
+      }),
+    });
+
+    const result = await fetchUSDTPrice();
+    expect(result.aud).toBe(1.50); // Should return cached value
+    expect(consoleWarnSpy).toHaveBeenCalled();
+  });
+
+  it('should validate price is a number', async () => {
+    // First, create a valid cache
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        tether: { aud: 1.51 },
+      }),
+    });
+
+    await fetchUSDTPrice(); // Cache it
+
+    // Advance time to expire cache
+    mockTime += 61000;
+
+    // Now provide invalid response - should return cached value
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        tether: {
+          aud: 'not-a-number', // Invalid
+        },
+      }),
+    });
+
+    const result = await fetchUSDTPrice();
+    expect(result.aud).toBe(1.51); // Should return cached value
+    expect(consoleWarnSpy).toHaveBeenCalled();
+  });
+});
+
+describe('convertUSDTToAUD', () => {
+  it('should convert USDT to AUD correctly', () => {
+    const usdtAmount = 100;
+    const usdtPrice = 1.50;
+
+    const result = convertUSDTToAUD(usdtAmount, usdtPrice);
+
+    expect(result).toBe(150);
+  });
+
+  it('should handle zero USDT', () => {
+    const result = convertUSDTToAUD(0, 1.50);
+    expect(result).toBe(0);
+  });
+
+  it('should handle fractional USDT', () => {
+    const result = convertUSDTToAUD(0.123456, 1.50);
+    expect(result).toBeCloseTo(0.185184, 6);
+  });
+
+  it('should handle large amounts', () => {
+    const result = convertUSDTToAUD(1000000, 1.52);
+    expect(result).toBe(1520000);
+  });
+
+  it('should handle price variations', () => {
+    const usdtAmount = 100;
+
+    const result1 = convertUSDTToAUD(usdtAmount, 1.45);
+    const result2 = convertUSDTToAUD(usdtAmount, 1.55);
+
+    expect(result1).toBe(145);
+    expect(result2).toBe(155);
+  });
+});
+
+describe('formatCurrency - USDT', () => {
+  it('should format USDT with 2-6 decimal places', () => {
+    const formatted = formatCurrency(100.123456, 'USDT');
+
+    expect(formatted).toContain('USDT');
+    expect(formatted).toContain('100.123456');
+  });
+
+  it('should format whole numbers with .00', () => {
+    const formatted = formatCurrency(100, 'USDT');
+
+    expect(formatted).toBe('100.00 USDT');
+  });
+
+  it('should format zero correctly', () => {
+    const formatted = formatCurrency(0, 'USDT');
+
+    expect(formatted).toBe('0.00 USDT');
+  });
+
+  it('should remove trailing zeros but keep at least 2 decimals', () => {
+    const formatted1 = formatCurrency(100.1, 'USDT');
+    const formatted2 = formatCurrency(100.12, 'USDT');
+    const formatted3 = formatCurrency(100.123, 'USDT');
+
+    expect(formatted1).toBe('100.10 USDT');
+    expect(formatted2).toBe('100.12 USDT');
+    expect(formatted3).toBe('100.123 USDT');
+  });
+
+  it('should handle all 6 decimal places', () => {
+    const formatted = formatCurrency(0.123456, 'USDT');
+
+    expect(formatted).toBe('0.123456 USDT');
+  });
+
+  it('should handle 1 micro-USDT (0.000001)', () => {
+    const formatted = formatCurrency(0.000001, 'USDT');
+
+    expect(formatted).toBe('0.000001 USDT');
+  });
+
+  it('should handle large amounts', () => {
+    const formatted = formatCurrency(1000000.50, 'USDT');
+
+    expect(formatted).toBe('1000000.50 USDT');
+  });
+
+  it('should remove trailing zeros from 6 decimal input', () => {
+    const formatted = formatCurrency(100.100000, 'USDT');
+
+    expect(formatted).toBe('100.10 USDT');
+  });
+
+  it('should format typical stablecoin amounts', () => {
+    const amounts = [1, 10, 100, 1000, 10000];
+    amounts.forEach((amount) => {
+      const formatted = formatCurrency(amount, 'USDT');
+      expect(formatted).toContain(`${amount}.00 USDT`);
+    });
+  });
+
+  it('should distinguish USDT from other currencies', () => {
+    const usdt = formatCurrency(100, 'USDT');
+    const eth = formatCurrency(100, 'ETH');
+    const btc = formatCurrency(100, 'BTC');
+
+    expect(usdt).toContain('USDT');
+    expect(usdt).not.toContain('ETH');
+    expect(usdt).not.toContain('BTC');
+
+    expect(eth).not.toContain('USDT');
+    expect(btc).not.toContain('USDT');
+  });
+
+  describe('USDT vs ETH vs SOL formatting comparison', () => {
+    it('should show 6 decimals for USDT, ETH, and SOL', () => {
+      const usdt = formatCurrency(1.123456789, 'USDT');
+      const eth = formatCurrency(1.123456789, 'ETH');
+      const sol = formatCurrency(1.123456789, 'SOL');
+
+      // All should truncate to 6 decimals
+      expect(usdt).toContain('1.123457');
+      expect(eth).toContain('1.123457');
+      expect(sol).toContain('1.123457');
+    });
+
+    it('should preserve proper decimal handling for stablecoins', () => {
+      // USDT should be formatted like a currency (similar to AUD)
+      const usdt1 = formatCurrency(1.5, 'USDT');
+      const usdt2 = formatCurrency(1.50, 'USDT');
+
+      expect(usdt1).toBe('1.50 USDT');
+      expect(usdt2).toBe('1.50 USDT');
     });
   });
 });

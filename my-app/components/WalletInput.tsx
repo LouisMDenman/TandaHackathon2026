@@ -11,7 +11,7 @@ import { getKeyTypeDescription } from '@/lib/bitcoin/detectKeyType';
 import { validateWallet, getWalletTypeDescription, type WalletType } from '@/lib/wallet/detectWalletType';
 
 interface WalletInputProps {
-  onSubmit: (extendedKey: string, keyType: KeyType) => void;
+  onSubmit: (extendedKey: string, keyType: KeyType, tokenType?: 'ETH' | 'USDT') => void;
   disabled?: boolean;
 }
 
@@ -21,6 +21,7 @@ export default function WalletInput({ onSubmit, disabled = false }: WalletInputP
   const [detectedWalletType, setDetectedWalletType] = useState<WalletType | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [isValid, setIsValid] = useState(false);
+  const [tokenType, setTokenType] = useState<'ETH' | 'USDT'>('ETH');
 
   // Validate wallet as user types
   useEffect(() => {
@@ -29,6 +30,7 @@ export default function WalletInput({ onSubmit, disabled = false }: WalletInputP
       setDetectedWalletType(null);
       setValidationError(null);
       setIsValid(false);
+      setTokenType('ETH'); // Reset token type when clearing
       return;
     }
 
@@ -40,6 +42,10 @@ export default function WalletInput({ onSubmit, disabled = false }: WalletInputP
           setDetectedKeyType(result.bitcoinInfo.type);
         } else {
           setDetectedKeyType(null);
+        }
+        // Reset to ETH when detecting a new Ethereum address
+        if (result.walletType === 'ethereum') {
+          setTokenType('ETH');
         }
         setValidationError(null);
         setIsValid(true);
@@ -62,7 +68,10 @@ export default function WalletInput({ onSubmit, disabled = false }: WalletInputP
     // For Bitcoin, we need the keyType. For others, we'll use 'xpub' as a placeholder
     // since the parent component routes based on wallet type anyway
     const keyType = detectedKeyType || 'xpub';
-    onSubmit(extendedKey.trim(), keyType);
+
+    // Pass tokenType only for Ethereum addresses
+    const tokenTypeToPass = detectedWalletType === 'ethereum' ? tokenType : undefined;
+    onSubmit(extendedKey.trim(), keyType, tokenTypeToPass);
   };
 
   const handleClear = () => {
@@ -71,6 +80,7 @@ export default function WalletInput({ onSubmit, disabled = false }: WalletInputP
     setDetectedWalletType(null);
     setValidationError(null);
     setIsValid(false);
+    setTokenType('ETH');
   };
 
   // Get display description based on wallet type
@@ -178,6 +188,45 @@ export default function WalletInput({ onSubmit, disabled = false }: WalletInputP
             ) : null}
           </div>
         )}
+
+        {/* Token Type Selector for Ethereum addresses */}
+        {isValid && detectedWalletType === 'ethereum' && (
+          <div className="mt-4 p-4 bg-blue-500/10 border border-blue-400/30 rounded-xl">
+            <label className="block text-sm font-bold text-white mb-3">
+              Select Token to Check:
+            </label>
+            <div className="flex gap-4">
+              <label className="flex items-center space-x-3 cursor-pointer group">
+                <input
+                  type="radio"
+                  name="tokenType"
+                  value="ETH"
+                  checked={tokenType === 'ETH'}
+                  onChange={(e) => setTokenType(e.target.value as 'ETH' | 'USDT')}
+                  disabled={disabled}
+                  className="w-5 h-5 text-cyan-500 border-white/30 focus:ring-cyan-400 focus:ring-offset-0 cursor-pointer"
+                />
+                <span className="text-white font-medium group-hover:text-cyan-400 transition-colors">
+                  Ethereum (ETH)
+                </span>
+              </label>
+              <label className="flex items-center space-x-3 cursor-pointer group">
+                <input
+                  type="radio"
+                  name="tokenType"
+                  value="USDT"
+                  checked={tokenType === 'USDT'}
+                  onChange={(e) => setTokenType(e.target.value as 'ETH' | 'USDT')}
+                  disabled={disabled}
+                  className="w-5 h-5 text-green-500 border-white/30 focus:ring-green-400 focus:ring-offset-0 cursor-pointer"
+                />
+                <span className="text-white font-medium group-hover:text-green-400 transition-colors">
+                  Tether (USDT)
+                </span>
+              </label>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Submit button */}
@@ -224,7 +273,7 @@ export default function WalletInput({ onSubmit, disabled = false }: WalletInputP
         <p className="flex items-start gap-2">
           <span className="text-purple-400 font-bold">✓</span>
           <span>
-            <strong className="text-white">Supported wallets:</strong> Bitcoin (xpub/ypub/zpub), Ethereum (0x...), Solana (base58), XRP (r... or X...)
+            <strong className="text-white">Supported wallets:</strong> Bitcoin (xpub/ypub/zpub), Ethereum (0x...), Solana (base58), XRP (r... or X...), Tether USDT (Ethereum address)
           </span>
         </p>
       </div>

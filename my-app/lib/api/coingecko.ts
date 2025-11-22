@@ -38,6 +38,14 @@ export interface XRPPrice {
 }
 
 /**
+ * Tether USDT price in AUD with timestamp
+ */
+export interface USDTPrice {
+  aud: number;
+  timestamp: number;
+}
+
+/**
  * CoinGecko API response structure for Bitcoin
  */
 interface CoinGeckoResponse {
@@ -74,6 +82,15 @@ interface CoinGeckoXRPResponse {
 }
 
 /**
+ * CoinGecko API response structure for USDT
+ */
+interface CoinGeckoUSDTResponse {
+  tether: {
+    aud: number;
+  };
+}
+
+/**
  * In-memory cache for BTC price
  * Stores the last fetched price with timestamp
  */
@@ -96,6 +113,12 @@ let solPriceCache: SOLPrice | null = null;
  * Stores the last fetched price with timestamp
  */
 let xrpPriceCache: XRPPrice | null = null;
+
+/**
+ * In-memory cache for USDT price
+ * Stores the last fetched price with timestamp
+ */
+let usdtPriceCache: USDTPrice | null = null;
 
 /**
  * Cache validity duration in milliseconds (60 seconds)
@@ -158,6 +181,21 @@ function isXRPCacheValid(): boolean {
 
   const now = Date.now();
   const cacheAge = now - xrpPriceCache.timestamp;
+
+  return cacheAge < CACHE_DURATION;
+}
+
+/**
+ * Check if cached USDT price is still valid
+ * @returns True if cache exists and is not expired
+ */
+function isUSDTCacheValid(): boolean {
+  if (!usdtPriceCache) {
+    return false;
+  }
+
+  const now = Date.now();
+  const cacheAge = now - usdtPriceCache.timestamp;
 
   return cacheAge < CACHE_DURATION;
 }
@@ -395,6 +433,64 @@ export async function fetchXRPPrice(): Promise<XRPPrice> {
 }
 
 /**
+ * Fetch USDT/AUD exchange rate from CoinGecko API
+ * Implements short-term in-memory caching (60 seconds)
+ *
+ * @returns USDT price in AUD with timestamp
+ * @throws Error if API request fails
+ */
+export async function fetchUSDTPrice(): Promise<USDTPrice> {
+  // Return cached price if still valid
+  if (isUSDTCacheValid() && usdtPriceCache) {
+    return usdtPriceCache;
+  }
+
+  const url = `${API_CONFIG.coingecko.baseUrl}/simple/price?ids=tether&vs_currencies=aud`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+      },
+      signal: AbortSignal.timeout(API_CONFIG.timeout),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data: CoinGeckoUSDTResponse = await response.json();
+
+    // Validate response structure
+    if (!data.tether || typeof data.tether.aud !== 'number') {
+      throw new Error('Invalid response format from CoinGecko API');
+    }
+
+    // Create price object with current timestamp
+    const price: USDTPrice = {
+      aud: data.tether.aud,
+      timestamp: Date.now(),
+    };
+
+    // Update cache
+    usdtPriceCache = price;
+
+    return price;
+  } catch (error) {
+    // If we have a cached price (even if expired), return it as fallback
+    if (usdtPriceCache) {
+      console.warn('Failed to fetch fresh USDT price, using cached value:', error);
+      return usdtPriceCache;
+    }
+
+    // No cached price available, throw error
+    console.error('Failed to fetch USDT price:', error);
+    throw new Error(`Failed to fetch USDT price: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+/**
  * Convert BTC amount to AUD
  *
  * @param btcAmount Amount in BTC
@@ -439,13 +535,24 @@ export function convertXRPToAUD(xrpAmount: number, price: number): number {
 }
 
 /**
+ * Convert USDT amount to AUD
+ *
+ * @param usdtAmount Amount in USDT
+ * @param price USDT price in AUD
+ * @returns Amount in AUD
+ */
+export function convertUSDTToAUD(usdtAmount: number, price: number): number {
+  return usdtAmount * price;
+}
+
+/**
  * Format currency amount for display
  *
  * @param amount Amount to format
- * @param currency Currency type (BTC, ETH, SOL, XRP, or AUD)
+ * @param currency Currency type (BTC, ETH, SOL, XRP, USDT, or AUD)
  * @returns Formatted currency string
  */
-export function formatCurrency(amount: number, currency: 'BTC' | 'ETH' | 'SOL' | 'XRP' | 'AUD'): string {
+export function formatCurrency(amount: number, currency: 'BTC' | 'ETH' | 'SOL' | 'XRP' | 'USDT' | 'AUD'): string {
   if (currency === 'BTC') {
     // Format BTC with 8 decimal places, removing trailing zeros
     const formatted = amount.toFixed(8);
@@ -502,6 +609,20 @@ export function formatCurrency(amount: number, currency: 'BTC' | 'ETH' | 'SOL' |
     }
 
     return `${trimmed} XRP`;
+  } else if (currency === 'USDT') {
+    // Format USDT with 2-6 decimal places (since USDT has 6 decimals)
+    const formatted = amount.toFixed(6);
+    const trimmed = formatted.replace(/\.?0+$/, '');
+
+    // Ensure at least 2 decimal places
+    const parts = trimmed.split('.');
+    if (parts.length === 1) {
+      return `${trimmed}.00 USDT`;
+    } else if (parts[1].length === 1) {
+      return `${trimmed}0 USDT`;
+    }
+
+    return `${trimmed} USDT`;
   } else {
     // Format AUD with 2 decimal places and thousand separators
     return new Intl.NumberFormat('en-AU', {

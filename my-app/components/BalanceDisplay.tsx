@@ -8,11 +8,11 @@
 import { formatAUD, formatTimestamp } from '@/lib/utils/format';
 import { formatCurrency } from '@/lib/api/coingecko';
 
-type CryptoType = 'BTC' | 'ETH' | 'SOL' | 'XRP';
+type CryptoType = 'BTC' | 'ETH' | 'SOL' | 'XRP' | 'USDT';
 
 interface BalanceDisplayProps {
   cryptoType: CryptoType;
-  totalCrypto: number; // Amount in BTC, ETH, SOL, or XRP
+  totalCrypto: number; // Amount in BTC, ETH, SOL, XRP, or USDT
   totalAUD: number;
   addressesScanned: number;
   addressesWithErrors: number;
@@ -32,7 +32,11 @@ export default function BalanceDisplay({
   const cryptoAmount = formatCurrency(totalCrypto, cryptoType);
   const audAmount = formatAUD(totalAUD);
   const isBitcoin = cryptoType === 'BTC';
-  const cryptoName = cryptoType === 'BTC' ? 'Bitcoin' : cryptoType === 'ETH' ? 'Ethereum' : cryptoType === 'SOL' ? 'Solana' : 'XRP';
+  const cryptoName = cryptoType === 'BTC' ? 'Bitcoin'
+    : cryptoType === 'ETH' ? 'Ethereum'
+    : cryptoType === 'SOL' ? 'Solana'
+    : cryptoType === 'XRP' ? 'XRP'
+    : 'Tether (USDT)';
 
   return (
     <div className="w-full max-w-2xl mx-auto">
