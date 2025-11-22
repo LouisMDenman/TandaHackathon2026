@@ -1,6 +1,6 @@
 /**
  * Wallet Balance Checker Page
- * Main page for checking Bitcoin, Ethereum, and Solana wallet balances
+ * Main page for checking Bitcoin, Ethereum, Solana, and XRP wallet balances
  */
 
 'use client';
@@ -12,9 +12,10 @@ import { deriveAddresses } from '@/lib/bitcoin/deriveAddresses';
 import { scanAddressesWithGapLimit } from '@/lib/bitcoin/scanAddresses';
 import { autoDetectAddressFormat } from '@/lib/bitcoin/autoDetectFormat';
 import { calculateTotalBalance } from '@/lib/api/blockstream';
-import { fetchBTCPrice, fetchETHPrice, fetchSOLPrice } from '@/lib/api/coingecko';
+import { fetchBTCPrice, fetchETHPrice, fetchSOLPrice, fetchXRPPrice } from '@/lib/api/coingecko';
 import { fetchEthBalance } from '@/lib/api/ethereum';
 import { fetchSolBalance } from '@/lib/api/solana';
+import { fetchXrpBalance } from '@/lib/api/xrp';
 import { satoshisToAUD } from '@/lib/utils/format';
 import { NETWORKS } from '@/lib/bitcoin/constants';
 import { validateWallet } from '@/lib/wallet/detectWalletType';
@@ -25,7 +26,7 @@ import ErrorDisplay from '@/components/ErrorDisplay';
 
 type ViewState = 'input' | 'loading' | 'results' | 'error';
 type ErrorType = 'validation' | 'network' | 'api' | 'unknown';
-type CryptoType = 'BTC' | 'ETH' | 'SOL';
+type CryptoType = 'BTC' | 'ETH' | 'SOL' | 'XRP';
 
 export default function WalletPage() {
   // State management
@@ -77,6 +78,9 @@ export default function WalletPage() {
       } else if (info.walletType === 'solana' && info.solanaInfo) {
         // Solana flow
         await handleSolanaCheck(info.solanaInfo.address);
+      } else if (info.walletType === 'xrp' && info.xrpInfo) {
+        // XRP flow
+        await handleXrpCheck(info.xrpInfo.address);
       } else {
         throw new Error('Invalid wallet type');
       }
@@ -206,6 +210,40 @@ export default function WalletPage() {
     const priceData = await fetchSOLPrice();
     const audValue = balanceResult.balanceInSol * priceData.aud;
     setTotalAUD(audValue);
+
+    // Success! Show results
+    setTimestamp(Date.now());
+    setViewState('results');
+  };
+
+  /**
+   * Handle XRP wallet check
+   */
+  const handleXrpCheck = async (address: string) => {
+    setCryptoType('XRP');
+
+    // Step 1: Fetch XRP balance
+    setLoadingStatus('Checking XRP balance...');
+    const balanceResult = await fetchXrpBalance(address);
+
+    if (balanceResult.status === 'error') {
+      throw new Error(balanceResult.error || 'Failed to fetch XRP balance');
+    }
+
+    setTotalCrypto(balanceResult.balanceInXrp);
+    setAddressesScanned(1); // Single address
+    setAddressesWithErrors(0);
+
+    // Step 2: Fetch XRP price
+    setLoadingStatus('Fetching XRP price...');
+    const priceData = await fetchXRPPrice();
+    const audValue = balanceResult.balanceInXrp * priceData.aud;
+    setTotalAUD(audValue);
+
+    // Display warning if account not found
+    if (!balanceResult.accountExists) {
+      setAddressesWithErrors(1);
+    }
 
     // Success! Show results
     setTimestamp(Date.now());

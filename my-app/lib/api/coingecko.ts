@@ -30,6 +30,14 @@ export interface SOLPrice {
 }
 
 /**
+ * XRP price in AUD with timestamp
+ */
+export interface XRPPrice {
+  aud: number;
+  timestamp: number;
+}
+
+/**
  * CoinGecko API response structure for Bitcoin
  */
 interface CoinGeckoResponse {
@@ -57,6 +65,15 @@ interface CoinGeckoSOLResponse {
 }
 
 /**
+ * CoinGecko API response structure for XRP
+ */
+interface CoinGeckoXRPResponse {
+  ripple: {
+    aud: number;
+  };
+}
+
+/**
  * In-memory cache for BTC price
  * Stores the last fetched price with timestamp
  */
@@ -73,6 +90,12 @@ let ethPriceCache: ETHPrice | null = null;
  * Stores the last fetched price with timestamp
  */
 let solPriceCache: SOLPrice | null = null;
+
+/**
+ * In-memory cache for XRP price
+ * Stores the last fetched price with timestamp
+ */
+let xrpPriceCache: XRPPrice | null = null;
 
 /**
  * Cache validity duration in milliseconds (60 seconds)
@@ -120,6 +143,21 @@ function isSOLCacheValid(): boolean {
 
   const now = Date.now();
   const cacheAge = now - solPriceCache.timestamp;
+
+  return cacheAge < CACHE_DURATION;
+}
+
+/**
+ * Check if cached XRP price is still valid
+ * @returns True if cache exists and is not expired
+ */
+function isXRPCacheValid(): boolean {
+  if (!xrpPriceCache) {
+    return false;
+  }
+
+  const now = Date.now();
+  const cacheAge = now - xrpPriceCache.timestamp;
 
   return cacheAge < CACHE_DURATION;
 }
@@ -299,6 +337,64 @@ export async function fetchSOLPrice(): Promise<SOLPrice> {
 }
 
 /**
+ * Fetch XRP/AUD exchange rate from CoinGecko API
+ * Implements short-term in-memory caching (60 seconds)
+ *
+ * @returns XRP price in AUD with timestamp
+ * @throws Error if API request fails
+ */
+export async function fetchXRPPrice(): Promise<XRPPrice> {
+  // Return cached price if still valid
+  if (isXRPCacheValid() && xrpPriceCache) {
+    return xrpPriceCache;
+  }
+
+  const url = `${API_CONFIG.coingecko.baseUrl}/simple/price?ids=ripple&vs_currencies=aud`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+      },
+      signal: AbortSignal.timeout(API_CONFIG.timeout),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data: CoinGeckoXRPResponse = await response.json();
+
+    // Validate response structure
+    if (!data.ripple || typeof data.ripple.aud !== 'number') {
+      throw new Error('Invalid response format from CoinGecko API');
+    }
+
+    // Create price object with current timestamp
+    const price: XRPPrice = {
+      aud: data.ripple.aud,
+      timestamp: Date.now(),
+    };
+
+    // Update cache
+    xrpPriceCache = price;
+
+    return price;
+  } catch (error) {
+    // If we have a cached price (even if expired), return it as fallback
+    if (xrpPriceCache) {
+      console.warn('Failed to fetch fresh XRP price, using cached value:', error);
+      return xrpPriceCache;
+    }
+
+    // No cached price available, throw error
+    console.error('Failed to fetch XRP price:', error);
+    throw new Error(`Failed to fetch XRP price: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+/**
  * Convert BTC amount to AUD
  *
  * @param btcAmount Amount in BTC
@@ -332,13 +428,24 @@ export function convertSOLToAUD(solAmount: number, price: number): number {
 }
 
 /**
+ * Convert XRP amount to AUD
+ *
+ * @param xrpAmount Amount in XRP
+ * @param price XRP price in AUD
+ * @returns Amount in AUD
+ */
+export function convertXRPToAUD(xrpAmount: number, price: number): number {
+  return xrpAmount * price;
+}
+
+/**
  * Format currency amount for display
  *
  * @param amount Amount to format
- * @param currency Currency type (BTC, ETH, SOL, or AUD)
+ * @param currency Currency type (BTC, ETH, SOL, XRP, or AUD)
  * @returns Formatted currency string
  */
-export function formatCurrency(amount: number, currency: 'BTC' | 'ETH' | 'SOL' | 'AUD'): string {
+export function formatCurrency(amount: number, currency: 'BTC' | 'ETH' | 'SOL' | 'XRP' | 'AUD'): string {
   if (currency === 'BTC') {
     // Format BTC with 8 decimal places, removing trailing zeros
     const formatted = amount.toFixed(8);
@@ -381,6 +488,20 @@ export function formatCurrency(amount: number, currency: 'BTC' | 'ETH' | 'SOL' |
     }
 
     return `${trimmed} SOL`;
+  } else if (currency === 'XRP') {
+    // Format XRP with 6 decimal places, removing trailing zeros
+    const formatted = amount.toFixed(6);
+    const trimmed = formatted.replace(/\.?0+$/, '');
+
+    // Ensure at least 2 decimal places
+    const parts = trimmed.split('.');
+    if (parts.length === 1) {
+      return `${trimmed}.00 XRP`;
+    } else if (parts[1].length === 1) {
+      return `${trimmed}0 XRP`;
+    }
+
+    return `${trimmed} XRP`;
   } else {
     // Format AUD with 2 decimal places and thousand separators
     return new Intl.NumberFormat('en-AU', {

@@ -25,7 +25,8 @@
     "react-chartjs-2": "^5.3.1",
     "react-dom": "19.2.0",
     "svix": "^1.81.0",
-    "tiny-secp256k1": "^2.2.4"
+    "tiny-secp256k1": "^2.2.4",
+    "xrpl": "^4.4.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
