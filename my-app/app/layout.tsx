@@ -11,8 +11,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Bitcoin Tools - Wallet Checker & Trading Playground",
-  description: "Check your Bitcoin wallet balance and practice trading with our paper trading simulator",
+  title: "Crypto Tools - Wallet Checker & Trading Playground",
+  description: "Check your Bitcoin or Ethereum wallet balance and practice trading with our paper trading simulator",
 };
 
 export default function RootLayout({

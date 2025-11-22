@@ -1,14 +1,18 @@
 /**
  * BalanceDisplay Component
- * Displays Bitcoin wallet balance results
+ * Displays crypto wallet balance results (Bitcoin or Ethereum)
  */
 
 'use client';
 
-import { formatSatoshisAsBTC, formatAUD, formatTimestamp } from '@/lib/utils/format';
+import { formatAUD, formatTimestamp } from '@/lib/utils/format';
+import { formatCurrency } from '@/lib/api/coingecko';
+
+type CryptoType = 'BTC' | 'ETH';
 
 interface BalanceDisplayProps {
-  totalSatoshis: number;
+  cryptoType: CryptoType;
+  totalCrypto: number; // Amount in BTC or ETH
   totalAUD: number;
   addressesScanned: number;
   addressesWithErrors: number;
@@ -17,15 +21,18 @@ interface BalanceDisplayProps {
 }
 
 export default function BalanceDisplay({
-  totalSatoshis,
+  cryptoType,
+  totalCrypto,
   totalAUD,
   addressesScanned,
   addressesWithErrors,
   timestamp,
   onReset,
 }: BalanceDisplayProps) {
-  const btcAmount = formatSatoshisAsBTC(totalSatoshis);
+  const cryptoAmount = formatCurrency(totalCrypto, cryptoType);
   const audAmount = formatAUD(totalAUD);
+  const isBitcoin = cryptoType === 'BTC';
+  const cryptoName = isBitcoin ? 'Bitcoin' : 'Ethereum';
 
   return (
     <div className="w-full max-w-2xl mx-auto">
@@ -41,13 +48,13 @@ export default function BalanceDisplay({
           </button>
         </div>
 
-        {/* BTC Balance */}
+        {/* Crypto Balance */}
         <div className="space-y-2">
           <div className="text-sm font-medium text-gray-500 uppercase tracking-wide">
-            Total Bitcoin
+            Total {cryptoName}
           </div>
           <div className="text-4xl font-bold text-gray-900 font-mono">
-            {btcAmount} BTC
+            {cryptoAmount}
           </div>
         </div>
 
@@ -65,10 +72,10 @@ export default function BalanceDisplay({
         <div className="grid grid-cols-2 gap-4 pt-4 border-t">
           <div className="space-y-1">
             <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-              Addresses Scanned
+              {isBitcoin ? 'Addresses Scanned' : 'Address'}
             </div>
             <div className="text-2xl font-semibold text-gray-900">
-              {addressesScanned}
+              {isBitcoin ? addressesScanned : '1'}
             </div>
           </div>
 
@@ -109,7 +116,7 @@ export default function BalanceDisplay({
         )}
 
         {/* Info box - shown if balance is zero */}
-        {totalSatoshis === 0 && (
+        {totalCrypto === 0 && (
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
             <div className="flex items-start space-x-2">
               <svg
@@ -128,11 +135,11 @@ export default function BalanceDisplay({
                 <p className="mt-1">
                   {addressesWithErrors > 0 ? (
                     <>
-                      The addresses that were successfully checked have no current balance. However, {addressesWithErrors} {addressesWithErrors === 1 ? 'address' : 'addresses'} could not be checked - there may be funds in those addresses.
+                      The {isBitcoin ? 'addresses' : 'address'} that {isBitcoin ? 'were' : 'was'} successfully checked {isBitcoin ? 'have' : 'has'} no current balance. However, {addressesWithErrors} {addressesWithErrors === 1 ? 'address' : 'addresses'} could not be checked - there may be funds in {addressesWithErrors === 1 ? 'that address' : 'those addresses'}.
                     </>
                   ) : (
                     <>
-                      This wallet has no current balance. It may be empty or all funds have been spent.
+                      This {isBitcoin ? 'wallet' : 'address'} has no current balance. It may be empty or all funds have been spent.
                     </>
                   )}
                 </p>
