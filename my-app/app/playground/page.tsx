@@ -153,6 +153,85 @@ export default function PlaygroundPage() {
     return () => clearTimeout(timeoutId)
   }, [balance, holdings, history, isHydrated, user, isSaving])
   
+  // ===== HANDLER FUNCTIONS =====
+  
+  // Add new symbol to watchlist
+  function handleAddSymbol() {
+    const trimmed = newSymbol.trim().toUpperCase()
+    if (!trimmed) return
+    
+    // Check if symbol already exists
+    if (symbols.some(s => s.symbol === trimmed)) {
+      alert(`${trimmed} is already in your watchlist`)
+      return
+    }
+    
+    // Determine currency based on symbol suffix
+    const currency = trimmed.endsWith('.AX') ? 'AUD' : 'USD'
+    
+    // Add new symbol
+    setSymbols(prev => [...prev, { 
+      symbol: trimmed, 
+      name: trimmed, // Will show actual name once price loads
+      currency 
+    }])
+    setNewSymbol('')
+  }
+  
+  // Trade execution function
+  function executeTrade(payload: {
+    symbol: string
+    side: "buy" | "sell"
+    qty: number
+    price: number
+  }) {
+    const { symbol, side, qty, price } = payload
+    const cost = +(qty * price)
+
+    if (!isHydrated || balance === null) {
+      alert("Wallet not ready yet")
+      return
+    }
+
+    if (side === "buy") {
+      if (cost > balance) {
+        alert("Not enough play money for that trade.")
+        return
+      }
+      setBalance(b => +(((b ?? 0) - cost).toFixed(2)))
+      setHoldings(h => {
+        const prev = h[symbol] || { qty: 0, avg: 0 }
+        const newQty = prev.qty + qty
+        const newAvg =
+          newQty === 0 ? 0 : ((prev.qty * prev.avg) + (qty * price)) / newQty
+        return { ...h, [symbol]: { qty: newQty, avg: +newAvg.toFixed(4) } }
+      })
+      setHistory(prev => [
+        { time: new Date().toISOString(), symbol, side, qty, price },
+        ...prev,
+      ])
+    } else {
+      const prevHold = holdings[symbol] || { qty: 0, avg: 0 }
+      if (qty > prevHold.qty) {
+        alert("You're trying to sell more than you own.")
+        return
+      }
+      setHoldings(h => {
+        const prev = h[symbol] || { qty: 0, avg: 0 }
+        const newQty = prev.qty - qty
+        const newHold = { ...h }
+        if (newQty <= 0) delete newHold[symbol]
+        else newHold[symbol] = { qty: newQty, avg: prev.avg }
+        return newHold
+      })
+      setBalance(b => +(((b ?? 0) + cost).toFixed(2)))
+      setHistory(prev => [
+        { time: new Date().toISOString(), symbol, side, qty, price },
+        ...prev,
+      ])
+    }
+  }
+  
   // ===== CONDITIONAL RENDERING BASED ON AUTH STATE =====
   // Show loading state while checking authentication
   if (!isLoaded) {
