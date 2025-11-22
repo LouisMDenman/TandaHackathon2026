@@ -1,106 +1,96 @@
 /**
  * WalletInput Component
- * Input form for crypto wallet (Bitcoin xpub/ypub/zpub or Ethereum address)
+ * Input form for extended public key (xpub/ypub/zpub)
  */
 
 'use client';
 
 import { useState, useEffect } from 'react';
-import type { WalletInfo } from '@/lib/wallet/detectWalletType';
-import { validateWallet, getWalletTypeDescription } from '@/lib/wallet/detectWalletType';
+import { KeyType } from '@/lib/bitcoin/types';
+import { detectAndValidateKey, getKeyTypeDescription } from '@/lib/bitcoin/detectKeyType';
 
 interface WalletInputProps {
-  onSubmit: (walletInput: string, walletInfo: WalletInfo) => void;
+  onSubmit: (extendedKey: string, keyType: KeyType) => void;
   disabled?: boolean;
 }
 
 export default function WalletInput({ onSubmit, disabled = false }: WalletInputProps) {
-  const [walletInput, setWalletInput] = useState('');
-  const [walletInfo, setWalletInfo] = useState<WalletInfo | null>(null);
+  const [extendedKey, setExtendedKey] = useState('');
+  const [detectedKeyType, setDetectedKeyType] = useState<KeyType | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [isValid, setIsValid] = useState(false);
-  const [isValidating, setIsValidating] = useState(false);
 
-  // Validate wallet input as user types (async for Ethereum checksum validation)
+  // Validate extended key as user types
   useEffect(() => {
-    if (!walletInput.trim()) {
-      setWalletInfo(null);
+    if (!extendedKey.trim()) {
+      setDetectedKeyType(null);
       setValidationError(null);
       setIsValid(false);
       return;
     }
 
-    // Debounce validation to avoid excessive calls
-    const timeoutId = setTimeout(async () => {
-      setIsValidating(true);
-      try {
-        const result = await validateWallet(walletInput.trim());
+    const result = detectAndValidateKey(extendedKey.trim());
 
-        if (result.valid) {
-          setWalletInfo(result);
-          setValidationError(null);
-          setIsValid(true);
-        } else {
-          setWalletInfo(result);
-          setValidationError(result.error || 'Invalid wallet format');
-          setIsValid(false);
-        }
-      } catch (error) {
-        setWalletInfo(null);
-        setValidationError('Error validating wallet');
-        setIsValid(false);
-      } finally {
-        setIsValidating(false);
-      }
-    }, 300); // 300ms debounce
-
-    return () => clearTimeout(timeoutId);
-  }, [walletInput]);
+    if (result.valid) {
+      setDetectedKeyType(result.type);
+      setValidationError(null);
+      setIsValid(true);
+    } else {
+      setDetectedKeyType(null);
+      setValidationError(result.error || 'Invalid extended public key');
+      setIsValid(false);
+    }
+  }, [extendedKey]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!isValid || !walletInfo) {
+    if (!isValid || !detectedKeyType) {
       return;
     }
 
-    onSubmit(walletInput.trim(), walletInfo);
+    onSubmit(extendedKey.trim(), detectedKeyType);
   };
 
   const handleClear = () => {
-    setWalletInput('');
-    setWalletInfo(null);
+    setExtendedKey('');
+    setDetectedKeyType(null);
     setValidationError(null);
     setIsValid(false);
   };
 
   return (
-    <form onSubmit={handleSubmit} className="w-full max-w-2xl mx-auto space-y-4">
-      <div>
-        <label htmlFor="wallet-input" className="block text-sm font-medium text-gray-700 mb-2">
-          Wallet Address or Public Key
+    <form onSubmit={handleSubmit} className="w-full max-w-2xl mx-auto space-y-6">
+      <div className="glass-card p-8" style={{
+        background: 'rgba(255, 255, 255, 0.1)',
+        backdropFilter: 'blur(10px)',
+        border: '1px solid rgba(255, 255, 255, 0.2)',
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
+      }}>
+        <label htmlFor="xpub-input" className="block text-lg font-bold text-white mb-4">
+          Extended Public Key
         </label>
         <div className="relative">
           <textarea
-            id="wallet-input"
-            value={walletInput}
-            onChange={(e) => setWalletInput(e.target.value)}
-            placeholder="Enter Bitcoin xpub/ypub/zpub or Ethereum address (0x...)..."
+            id="xpub-input"
+            value={extendedKey}
+            onChange={(e) => setExtendedKey(e.target.value)}
+            placeholder="Enter your xpub, ypub, or zpub..."
             disabled={disabled}
             rows={3}
-            className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 font-mono text-sm resize-none text-gray-700 placeholder:text-gray-400 ${
-              walletInput && isValid
-                ? 'border-green-500 focus:ring-green-500'
-                : walletInput && validationError
-                ? 'border-red-500 focus:ring-red-500'
-                : 'border-gray-300 focus:ring-blue-500'
-            } ${disabled ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}`}
+            className={`w-full px-5 py-4 rounded-xl focus:outline-none focus:ring-2 font-mono text-sm resize-none transition-all duration-300 ${
+              extendedKey && isValid
+                ? 'bg-white/20 border-2 border-green-400 focus:ring-green-400 text-white placeholder:text-slate-400 shadow-lg shadow-green-400/20'
+                : extendedKey && validationError
+                ? 'bg-white/20 border-2 border-red-400 focus:ring-red-400 text-white placeholder:text-slate-400 shadow-lg shadow-red-400/20'
+                : 'bg-white/10 border-2 border-white/20 focus:ring-cyan-400 text-white placeholder:text-slate-400'
+            } ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
           />
-          {walletInput && !disabled && (
+          {extendedKey && !disabled && (
             <button
               type="button"
               onClick={handleClear}
-              className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 focus:outline-none"
+              className="absolute top-4 right-4 text-slate-400 hover:text-white focus:outline-none transition-colors p-1 hover:bg-white/10 rounded-lg"
               aria-label="Clear input"
             >
               <svg
@@ -121,35 +111,12 @@ export default function WalletInput({ onSubmit, disabled = false }: WalletInputP
         </div>
 
         {/* Validation feedback */}
-        {walletInput && (
-          <div className="mt-2">
-            {isValidating ? (
-              <div className="flex items-start space-x-2 text-sm text-gray-500">
+        {extendedKey && (
+          <div className="mt-4">
+            {isValid && detectedKeyType ? (
+              <div className="flex items-start space-x-3 text-sm bg-green-500/20 border border-green-400/30 rounded-xl p-4">
                 <svg
-                  className="w-5 h-5 flex-shrink-0 mt-0.5 animate-spin"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  />
-                </svg>
-                <p>Validating...</p>
-              </div>
-            ) : isValid && walletInfo ? (
-              <div className="flex items-start space-x-2 text-sm text-green-600">
-                <svg
-                  className="w-5 h-5 flex-shrink-0 mt-0.5"
+                  className="w-6 h-6 flex-shrink-0 mt-0.5 text-green-400"
                   fill="currentColor"
                   viewBox="0 0 20 20"
                 >
@@ -160,28 +127,16 @@ export default function WalletInput({ onSubmit, disabled = false }: WalletInputP
                   />
                 </svg>
                 <div>
-                  <p className="font-medium">
-                    Valid {getWalletTypeDescription(walletInfo.walletType)}
+                  <p className="font-bold text-green-400">Valid {detectedKeyType}</p>
+                  <p className="text-green-300 mt-1">
+                    {getKeyTypeDescription(detectedKeyType)}
                   </p>
-                  {walletInfo.bitcoinInfo && (
-                    <p className="text-gray-600 mt-0.5">
-                      {walletInfo.bitcoinInfo.type.toUpperCase()} -
-                      {walletInfo.bitcoinInfo.type === 'xpub' && ' Legacy (P2PKH)'}
-                      {walletInfo.bitcoinInfo.type === 'ypub' && ' Nested SegWit (P2SH-P2WPKH)'}
-                      {walletInfo.bitcoinInfo.type === 'zpub' && ' Native SegWit (P2WPKH)'}
-                    </p>
-                  )}
-                  {walletInfo.ethereumInfo && (
-                    <p className="text-gray-600 mt-0.5">
-                      Ethereum Mainnet Address
-                    </p>
-                  )}
                 </div>
               </div>
             ) : validationError ? (
-              <div className="flex items-start space-x-2 text-sm text-red-600">
+              <div className="flex items-start space-x-3 text-sm bg-red-500/20 border border-red-400/30 rounded-xl p-4">
                 <svg
-                  className="w-5 h-5 flex-shrink-0 mt-0.5"
+                  className="w-6 h-6 flex-shrink-0 mt-0.5 text-red-400"
                   fill="currentColor"
                   viewBox="0 0 20 20"
                 >
@@ -191,7 +146,7 @@ export default function WalletInput({ onSubmit, disabled = false }: WalletInputP
                     clipRule="evenodd"
                   />
                 </svg>
-                <p>{validationError}</p>
+                <p className="text-red-300">{validationError}</p>
               </div>
             ) : null}
           </div>
@@ -202,28 +157,49 @@ export default function WalletInput({ onSubmit, disabled = false }: WalletInputP
       <button
         type="submit"
         disabled={!isValid || disabled}
-        className={`w-full py-3 px-4 rounded-lg font-medium text-white transition-colors ${
+        className={`group w-full py-5 px-6 rounded-xl font-bold text-lg text-white transition-all duration-300 relative overflow-hidden ${
           isValid && !disabled
-            ? 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2'
-            : 'bg-gray-300 cursor-not-allowed'
+            ? 'bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 shadow-2xl hover:shadow-cyan-500/50 hover:scale-105 hover:-translate-y-1'
+            : 'bg-gray-600 cursor-not-allowed opacity-50'
         }`}
+        style={{
+          boxShadow: isValid && !disabled ? '0 0 40px rgba(59, 130, 246, 0.4)' : 'none'
+        }}
       >
-        {disabled ? 'Checking...' : 'Check Balance'}
+        {disabled ? (
+          <span className="flex items-center justify-center gap-3">
+            <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Checking Balance...
+          </span>
+        ) : (
+          <span className="flex items-center justify-center gap-3">
+            Check Balance
+            <span className="text-2xl group-hover:translate-x-2 transition-transform duration-300">→</span>
+          </span>
+        )}
+        {isValid && !disabled && (
+          <span className="absolute inset-0 rounded-xl bg-gradient-to-r from-purple-600 via-pink-500 to-blue-600 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></span>
+        )}
       </button>
 
       {/* Help text */}
-      <div className="text-sm text-gray-500 space-y-1">
-        <p>
-          <strong>Privacy Notice:</strong> Your wallet information never leaves your device
-          during validation. Balance checking is done through secure API calls.
+      <div className="text-sm text-slate-400 space-y-3 bg-white/5 rounded-xl p-6 backdrop-blur-sm border border-white/10">
+        <p className="flex items-start gap-2">
+          <span className="text-cyan-400 font-bold">🔒</span>
+          <span>
+            <strong className="text-white">Privacy Notice:</strong> Your extended public key never leaves your device
+            during validation. Balance checking is done through secure API calls.
+          </span>
         </p>
-        <p>
-          <strong>Supported formats:</strong>
+        <p className="flex items-start gap-2">
+          <span className="text-purple-400 font-bold">✓</span>
+          <span>
+            <strong className="text-white">Supported formats:</strong> xpub (Legacy), ypub (Nested SegWit), zpub (Native SegWit)
+          </span>
         </p>
-        <ul className="ml-4 list-disc">
-          <li>Bitcoin: xpub (Legacy), ypub (Nested SegWit), zpub (Native SegWit)</li>
-          <li>Ethereum: Standard addresses starting with 0x</li>
-        </ul>
       </div>
     </form>
   );

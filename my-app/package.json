@@ -12,6 +12,8 @@
     "test:coverage": "jest --coverage"
   },
   "dependencies": {
+    "@clerk/nextjs": "^6.35.4",
+    "@supabase/supabase-js": "^2.84.0",
     "bip32": "^5.0.0",
     "bitcoinjs-lib": "^7.0.0",
     "bs58": "^5.0.0",

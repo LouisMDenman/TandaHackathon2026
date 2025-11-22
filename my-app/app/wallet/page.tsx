@@ -6,9 +6,9 @@
 'use client';
 
 import { useState } from 'react';
-import type { WalletInfo } from '@/lib/wallet/detectWalletType';
-import type { KeyType } from '@/lib/bitcoin/types';
+import { KeyType } from '@/lib/bitcoin/types';
 import { detectAndValidateKey } from '@/lib/bitcoin/detectKeyType';
+import { deriveAddresses } from '@/lib/bitcoin/deriveAddresses';
 import { scanAddressesWithGapLimit } from '@/lib/bitcoin/scanAddresses';
 import { autoDetectAddressFormat } from '@/lib/bitcoin/autoDetectFormat';
 import { calculateTotalBalance } from '@/lib/api/blockstream';
@@ -32,12 +32,11 @@ export default function WalletPage() {
   const [loadingStatus, setLoadingStatus] = useState<string>('');
 
   // Wallet data
-  const [walletInput, setWalletInput] = useState<string>('');
-  const [walletInfo, setWalletInfo] = useState<WalletInfo | null>(null);
-  const [cryptoType, setCryptoType] = useState<CryptoType>('BTC');
+  const [extendedKey, setExtendedKey] = useState<string>('');
+  const [keyType, setKeyType] = useState<KeyType | null>(null);
 
-  // Results (generic for both BTC and ETH)
-  const [totalCrypto, setTotalCrypto] = useState<number>(0); // BTC or ETH amount
+  // Results
+  const [totalSatoshis, setTotalSatoshis] = useState<number>(0);
   const [totalAUD, setTotalAUD] = useState<number>(0);
   const [addressesScanned, setAddressesScanned] = useState<number>(0);
   const [addressesWithErrors, setAddressesWithErrors] = useState<number>(0);
@@ -50,9 +49,9 @@ export default function WalletPage() {
   /**
    * Handle wallet balance check submission
    */
-  const handleSubmit = async (input: string, info: WalletInfo) => {
-    setWalletInput(input);
-    setWalletInfo(info);
+  const handleSubmit = async (key: string, type: KeyType) => {
+    setExtendedKey(key);
+    setKeyType(type);
     setViewState('loading');
     setError('');
 
@@ -69,6 +68,43 @@ export default function WalletPage() {
       } else {
         throw new Error('Invalid wallet type');
       }
+
+      // Step 1.5: Auto-detect correct address format
+      setLoadingStatus('Auto-detecting address format (checking Legacy/SegWit/Native SegWit)...');
+
+      const formatDetection = await autoDetectAddressFormat(key, type, NETWORKS.mainnet);
+
+      // Update the key type to the detected format
+      const actualKeyType = formatDetection.detectedFormat;
+      setKeyType(actualKeyType);
+
+      // Step 2: Derive and scan addresses with gap limit
+      setLoadingStatus(`Scanning ${actualKeyType} addresses (${actualKeyType === 'xpub' ? 'Legacy/1...' : actualKeyType === 'ypub' ? 'SegWit/3...' : 'Native SegWit/bc1...'})...`);
+
+      // Use gap limit scanning to find all used addresses with the correct format
+      // This will scan until finding 20 consecutive unused addresses
+      const addresses = await scanAddressesWithGapLimit(key, actualKeyType, NETWORKS.mainnet);
+      setAddressesScanned(addresses.length);
+
+      // Extract just the address strings for balance checking
+      const addressList = addresses.map(addr => addr.address);
+
+      // Step 3: Fetch balances
+      setLoadingStatus('Checking balances...');
+      const balanceResult = await calculateTotalBalance(addressList);
+      setTotalSatoshis(balanceResult.totalBalance);
+      setAddressesWithErrors(balanceResult.addressesWithErrors);
+
+      // Step 4: Fetch price
+      setLoadingStatus('Fetching price...');
+      const priceData = await fetchBTCPrice();
+      const audValue = satoshisToAUD(balanceResult.totalBalance, priceData.aud);
+      setTotalAUD(audValue);
+
+      // Success! Show results
+      setTimestamp(Date.now());
+      setViewState('results');
+
     } catch (err) {
       console.error('Error checking wallet balance:', err);
 
@@ -206,10 +242,9 @@ export default function WalletPage() {
   const handleReset = () => {
     setViewState('input');
     setLoadingStatus('');
-    setWalletInput('');
-    setWalletInfo(null);
-    setCryptoType('BTC');
-    setTotalCrypto(0);
+    setExtendedKey('');
+    setKeyType(null);
+    setTotalSatoshis(0);
     setTotalAUD(0);
     setAddressesScanned(0);
     setAddressesWithErrors(0);
@@ -222,62 +257,92 @@ export default function WalletPage() {
    * Retry the last check
    */
   const handleRetry = () => {
-    if (walletInput && walletInfo) {
-      handleSubmit(walletInput, walletInfo);
+    if (extendedKey && keyType) {
+      handleSubmit(extendedKey, keyType);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            Crypto Wallet Balance Checker
-          </h1>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Check your Bitcoin, Ethereum, or Solana wallet balance privately and securely.
-            No data is stored, and all checks are done in real-time.
-          </p>
+    <div className="min-h-screen relative overflow-hidden">
+      {/* Animated Background */}
+      <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-blue-900 to-purple-900">
+        <div className="absolute inset-0 opacity-30">
+          <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-500 rounded-full filter blur-3xl animate-float"></div>
+          <div className="absolute top-1/3 right-1/4 w-96 h-96 bg-purple-500 rounded-full filter blur-3xl animate-float" style={{ animationDelay: '2s' }}></div>
+          <div className="absolute bottom-1/4 left-1/2 w-96 h-96 bg-cyan-500 rounded-full filter blur-3xl animate-float" style={{ animationDelay: '4s' }}></div>
         </div>
+      </div>
 
-        {/* Main content area - switches based on view state */}
-        <div className="mb-8">
-          {viewState === 'input' && (
-            <WalletInput onSubmit={handleSubmit} disabled={false} />
-          )}
+      <div className="relative z-10 py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-4xl mx-auto">
+          {/* Header with Animation */}
+          <div className="text-center mb-12 fade-in">
+            <div className="inline-block mb-4">
+              <div className="text-7xl mb-4 animate-bounce-slow">₿</div>
+            </div>
+            <h1 className="text-5xl md:text-6xl font-black mb-6 text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-400 animate-gradient-x"
+                style={{
+                  textShadow: '0 0 40px rgba(59, 130, 246, 0.5)'
+                }}>
+              Wallet Balance Checker
+            </h1>
+            <p className="text-xl text-slate-300 max-w-2xl mx-auto leading-relaxed">
+              Check your Bitcoin wallet balance <span className="text-cyan-400 font-bold">privately</span> and{" "}
+              <span className="text-purple-400 font-bold">securely</span>.
+              No data is stored, all checks are done in real-time.
+            </p>
+          </div>
 
-          {viewState === 'loading' && (
-            <LoadingState status={loadingStatus} />
-          )}
+          {/* Main content area - switches based on view state */}
+          <div className="mb-8">
+            {viewState === 'input' && (
+              <div className="fade-in">
+                <WalletInput onSubmit={handleSubmit} disabled={false} />
+              </div>
+            )}
 
-          {viewState === 'results' && (
-            <BalanceDisplay
-              cryptoType={cryptoType}
-              totalCrypto={totalCrypto}
-              totalAUD={totalAUD}
-              addressesScanned={addressesScanned}
-              addressesWithErrors={addressesWithErrors}
-              timestamp={timestamp}
-              onReset={handleReset}
-            />
-          )}
+            {viewState === 'loading' && (
+              <div className="fade-in">
+                <LoadingState status={loadingStatus} />
+              </div>
+            )}
 
-          {viewState === 'error' && (
-            <ErrorDisplay
-              error={error}
-              errorType={errorType}
-              onRetry={handleRetry}
-              onReset={handleReset}
-            />
-          )}
-        </div>
+            {viewState === 'results' && (
+              <div className="fade-in">
+                <BalanceDisplay
+                  totalSatoshis={totalSatoshis}
+                  totalAUD={totalAUD}
+                  addressesScanned={addressesScanned}
+                  addressesWithErrors={addressesWithErrors}
+                  timestamp={timestamp}
+                  onReset={handleReset}
+                />
+              </div>
+            )}
+
+            {viewState === 'error' && (
+              <div className="fade-in">
+                <ErrorDisplay
+                  error={error}
+                  errorType={errorType}
+                  onRetry={handleRetry}
+                  onReset={handleReset}
+                />
+              </div>
+            )}
+          </div>
 
         {/* Privacy notice - always visible */}
-        <div className="bg-white rounded-lg shadow p-6 max-w-2xl mx-auto">
-          <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+        <div className="glass-card p-8 max-w-2xl mx-auto group hover:shadow-2xl transition-all duration-300"
+             style={{
+               background: 'rgba(255, 255, 255, 0.05)',
+               backdropFilter: 'blur(10px)',
+               border: '1px solid rgba(255, 255, 255, 0.1)',
+               boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
+             }}>
+          <h3 className="text-2xl font-bold text-white mb-6 flex items-center">
             <svg
-              className="w-5 h-5 mr-2 text-green-600"
+              className="w-7 h-7 mr-3 text-green-400"
               fill="currentColor"
               viewBox="0 0 20 20"
             >
@@ -289,99 +354,97 @@ export default function WalletPage() {
             </svg>
             Privacy & Security
           </h3>
-          <div className="space-y-2 text-sm text-gray-600">
-            <p>
-              <strong>No Data Storage:</strong> We don't store any wallet information,
-              extended public keys, addresses, or balance data. Everything is processed in real-time
-              and discarded after display.
-            </p>
-            <p>
-              <strong>Read-Only Access:</strong> For Bitcoin, extended public keys only allow us to
-              view addresses and balances. For Ethereum and Solana, you provide a public address. None of these can be
-              used to spend or access your funds.
-            </p>
-            <p>
-              <strong>Third-Party APIs:</strong> Balance data is fetched from public blockchain
-              APIs (Blockstream for Bitcoin, Ethereum RPC nodes for Ethereum, Solana RPC nodes for Solana) and price data from CoinGecko.
-              For Bitcoin, during auto-detection, we check up to 3 derived addresses on-chain to determine
-              your wallet's address format. These API requests may be logged by the provider (including your
-              IP address and the addresses checked). Note that blockchain addresses and their balances are
-              public information already visible on the blockchain to anyone.
-            </p>
-            <p>
-              <strong>Client-Side Processing:</strong> All cryptographic operations
-              (address derivation for Bitcoin, checksum validation for Ethereum, base58 validation for Solana) happen in your browser.
-              Your wallet information is never sent to our servers.
-            </p>
+          <div className="space-y-4 text-slate-300">
+            <div className="pl-10">
+              <p className="leading-relaxed">
+                <strong className="text-cyan-400">No Data Storage:</strong> We don't store any wallet information,
+                extended public keys, or balance data. Everything is processed in real-time
+                and discarded after display.
+              </p>
+            </div>
+            <div className="pl-10">
+              <p className="leading-relaxed">
+                <strong className="text-cyan-400">Read-Only Access:</strong> Extended public keys only allow us to
+                view addresses and balances. They cannot be used to spend or access your funds.
+              </p>
+            </div>
+            <div className="pl-10">
+              <p className="leading-relaxed">
+                <strong className="text-cyan-400">Third-Party APIs:</strong> Balance data is fetched from public blockchain
+                APIs (Blockstream) and price data from CoinGecko. During auto-detection, we check
+                up to 3 derived addresses on-chain to determine your wallet's address format.
+              </p>
+            </div>
+            <div className="pl-10">
+              <p className="leading-relaxed">
+                <strong className="text-cyan-400">Client-Side Processing:</strong> All cryptographic operations
+                (address derivation) happen in your browser. Your extended public keys are never
+                sent to our servers.
+              </p>
+            </div>
           </div>
         </div>
 
         {/* How it works section */}
-        <div className="mt-8 bg-white rounded-lg shadow p-6 max-w-2xl mx-auto">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">How It Works</h3>
-
-          <div className="mb-6">
-            <h4 className="font-medium text-gray-900 mb-2">For Bitcoin:</h4>
-            <div className="space-y-3">
-              <div className="flex items-start space-x-3">
-                <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-semibold text-sm">
-                  1
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">
-                    Enter your xpub (Legacy), ypub (Nested SegWit), or zpub (Native SegWit) key.
-                    The app auto-detects the correct format by checking which address type has been used.
-                  </p>
-                </div>
+        <div className="mt-8 glass-card p-8 max-w-2xl mx-auto group hover:shadow-2xl transition-all duration-300"
+             style={{
+               background: 'rgba(255, 255, 255, 0.05)',
+               backdropFilter: 'blur(10px)',
+               border: '1px solid rgba(255, 255, 255, 0.1)',
+               boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
+             }}>
+          <h3 className="text-2xl font-bold text-white mb-6">How It Works</h3>
+          <div className="space-y-6">
+            <div className="flex items-start space-x-4 group/item hover:translate-x-2 transition-transform duration-300">
+              <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-lg group-hover/item:scale-110 transition-transform duration-300">
+                1
               </div>
-
-              <div className="flex items-start space-x-3">
-                <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-semibold text-sm">
-                  2
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">
-                    Derives addresses using BIP32/44/49/84, scanning until finding 20 consecutive unused addresses.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-start space-x-3">
-                <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-semibold text-sm">
-                  3
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">
-                    Checks balances via Blockstream API and displays total in BTC and AUD.
-                  </p>
-                </div>
+              <div>
+                <h4 className="font-bold text-white text-lg mb-2">Enter Your Extended Public Key</h4>
+                <p className="text-slate-300 leading-relaxed">
+                  Paste your xpub (Legacy), ypub (Nested SegWit), or zpub (Native SegWit) key.
+                  The app will auto-detect the correct format by checking which address type has
+                  been used.
+                </p>
               </div>
             </div>
-          </div>
 
-          <div className="mb-6">
-            <h4 className="font-medium text-gray-900 mb-2">For Ethereum:</h4>
-            <div className="space-y-3">
-              <div className="flex items-start space-x-3">
-                <div className="flex-shrink-0 w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center text-purple-600 font-semibold text-sm">
-                  1
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">
-                    Enter your Ethereum address (0x...). The app validates the EIP-55 checksum.
-                  </p>
-                </div>
+            <div className="flex items-start space-x-4 group/item hover:translate-x-2 transition-transform duration-300">
+              <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-lg group-hover/item:scale-110 transition-transform duration-300">
+                2
               </div>
+              <div>
+                <h4 className="font-bold text-white text-lg mb-2">Derive Addresses</h4>
+                <p className="text-slate-300 leading-relaxed">
+                  We derive addresses from your extended key using industry-standard BIP32/44/49/84
+                  derivation paths, scanning until we find 20 consecutive unused addresses (gap limit).
+                </p>
+              </div>
+            </div>
 
-              <div className="flex items-start space-x-3">
-                <div className="flex-shrink-0 w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center text-purple-600 font-semibold text-sm">
-                  2
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">
-                    Fetches balance via Ethereum JSON-RPC (Cloudflare gateway) and displays in ETH and AUD.
-                  </p>
-                </div>
+            <div className="flex items-start space-x-4 group/item hover:translate-x-2 transition-transform duration-300">
+              <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-600 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-lg group-hover/item:scale-110 transition-transform duration-300">
+                3
+              </div>
+              <div>
+                <h4 className="font-bold text-white text-lg mb-2">Check Balances</h4>
+                <p className="text-slate-300 leading-relaxed">
+                  Each address is checked against the Bitcoin blockchain using the
+                  Blockstream API to get the current balance.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-start space-x-4 group/item hover:translate-x-2 transition-transform duration-300">
+              <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-r from-pink-500 to-red-600 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-lg group-hover/item:scale-110 transition-transform duration-300">
+                4
+              </div>
+              <div>
+                <h4 className="font-bold text-white text-lg mb-2">Display Results</h4>
+                <p className="text-slate-300 leading-relaxed">
+                  Your total balance is displayed in both BTC and AUD,
+                  with the current exchange rate from CoinGecko.
+                </p>
               </div>
             </div>
           </div>
@@ -414,12 +477,13 @@ export default function WalletPage() {
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="mt-8 text-center text-sm text-gray-500">
-          <p>
-            This tool is for informational purposes only. Always verify balances
-            through your official wallet software.
-          </p>
+          {/* Footer */}
+          <div className="mt-12 text-center">
+            <p className="text-slate-400 text-sm max-w-xl mx-auto leading-relaxed">
+              This tool is for informational purposes only. Always verify balances
+              through your official wallet software.
+            </p>
+          </div>
         </div>
       </div>
     </div>

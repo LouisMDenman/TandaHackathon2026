@@ -449,7 +449,7 @@ Built with ❤️ by the team
 
 - 🐛 [Report a Bug](https://github.com/LouisMDenman/TandaHackathon2026/issues)
 - 💡 [Request a Feature](https://github.com/LouisMDenman/TandaHackathon2026/issues)
-- 📧 Email: [your-email]
+- 📧 Email: TBA
 
 ---
 
