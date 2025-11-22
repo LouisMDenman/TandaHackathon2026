@@ -1,6 +1,7 @@
 "use client"
 import Link from "next/link";
 import { SignInButton, SignedIn, SignedOut, UserButton } from '@clerk/nextjs'
+import { useEffect, useState } from 'react';
 
 /**
  * Landing Page
@@ -8,7 +9,37 @@ import { SignInButton, SignedIn, SignedOut, UserButton } from '@clerk/nextjs'
  * Combines animated hero section with comprehensive informational content
  */
 
+// Pre-generated particle positions to avoid hydration mismatch
+const PARTICLE_POSITIONS = [
+  { left: 15, top: 20, duration: 5, delay: 0 },
+  { left: 85, top: 10, duration: 4, delay: 1 },
+  { left: 50, top: 80, duration: 6, delay: 2 },
+  { left: 30, top: 50, duration: 5.5, delay: 0.5 },
+  { left: 70, top: 30, duration: 4.5, delay: 1.5 },
+  { left: 10, top: 70, duration: 6.5, delay: 2.5 },
+  { left: 90, top: 60, duration: 5, delay: 3 },
+  { left: 40, top: 15, duration: 4, delay: 3.5 },
+  { left: 60, top: 85, duration: 6, delay: 4 },
+  { left: 25, top: 40, duration: 5.5, delay: 4.5 },
+  { left: 75, top: 55, duration: 4.5, delay: 0.2 },
+  { left: 45, top: 25, duration: 6.5, delay: 1.2 },
+  { left: 55, top: 75, duration: 5, delay: 2.2 },
+  { left: 35, top: 65, duration: 4, delay: 3.2 },
+  { left: 65, top: 35, duration: 6, delay: 4.2 },
+  { left: 20, top: 90, duration: 5.5, delay: 0.8 },
+  { left: 80, top: 45, duration: 4.5, delay: 1.8 },
+  { left: 50, top: 10, duration: 6.5, delay: 2.8 },
+  { left: 10, top: 50, duration: 5, delay: 3.8 },
+  { left: 90, top: 20, duration: 4, delay: 4.8 },
+];
+
 export default function Home() {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   return (
     <>
       {/* Hero Section with Animated Background */}
@@ -40,6 +71,10 @@ export default function Home() {
             const delay = (i * 0.3) % 5;
             
             return (
+        {/* Particle effect overlay - only render on client */}
+        {mounted && (
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            {PARTICLE_POSITIONS.map((particle, i) => (
               <div
                 key={i}
                 className="absolute w-1 h-1 bg-white rounded-full"
@@ -54,6 +89,16 @@ export default function Home() {
             );
           })}
         </div>
+                  left: `${particle.left}%`,
+                  top: `${particle.top}%`,
+                  animation: `particle-float ${particle.duration}s ease-in-out infinite`,
+                  animationDelay: `${particle.delay}s`,
+                  opacity: 0.6
+                }}
+              />
+            ))}
+          </div>
+        )}
         
         <main className="relative z-10 flex min-h-screen w-full max-w-6xl flex-col items-center justify-center py-20 px-8 text-center">
           {/* User button in top right */}

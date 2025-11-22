@@ -22,83 +22,8 @@ type PricePoint = { t: number; p: number }
 export default function PlaygroundPage() {
   const { user, isLoaded } = useUser()
   
-  // Show loading state while checking authentication
-  if (!isLoaded) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-cyan-400 mx-auto mb-4"></div>
-          <p className="text-white text-xl">Loading...</p>
-        </div>
-      </div>
-    )
-  }
-  
-  // Show sign-in page if user is not authenticated
-  if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden">
-        {/* Animated background orbs */}
-        <div className="absolute top-20 left-20 w-96 h-96 bg-purple-500 rounded-full filter blur-3xl opacity-30 animate-float" 
-             style={{
-               boxShadow: '0 0 100px 50px rgba(139, 92, 246, 0.3)'
-             }}></div>
-        <div className="absolute bottom-20 right-20 w-96 h-96 bg-cyan-500 rounded-full filter blur-3xl opacity-30 animate-float" 
-             style={{
-               boxShadow: '0 0 100px 50px rgba(6, 182, 212, 0.3)',
-               animationDelay: '2s'
-             }}></div>
-        
-        <div className="relative z-10 max-w-md w-full mx-4 p-8 bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 shadow-2xl">
-          <div className="text-center mb-8">
-            <div className="text-6xl mb-4">🎮</div>
-            <h1 className="text-4xl font-black text-white mb-4">
-              Join the Trading Playground
-            </h1>
-            <p className="text-slate-300 text-lg">
-              Sign in to start practicing with <span className="text-cyan-400 font-bold">$100,000</span> in play money
-            </p>
-          </div>
-          
-          <div className="space-y-4">
-            <SignUpButton mode="modal">
-              <button className="w-full px-8 py-4 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-lg font-bold shadow-lg hover:shadow-cyan-500/50 transition-all duration-300 hover:scale-105">
-                Sign Up - It's Free
-              </button>
-            </SignUpButton>
-            
-            <SignInButton mode="modal">
-              <button className="w-full px-8 py-4 rounded-xl bg-white/10 backdrop-blur-md border-2 border-white/20 text-white text-lg font-bold hover:bg-white/20 transition-all duration-300">
-                Already have an account? Sign In
-              </button>
-            </SignInButton>
-          </div>
-          
-          <div className="mt-8 pt-6 border-t border-white/10">
-            <h3 className="text-white font-semibold mb-3 text-center">What you'll get:</h3>
-            <ul className="space-y-2 text-slate-300">
-              <li className="flex items-start">
-                <span className="text-green-400 mr-2">✓</span>
-                <span>$100,000 starting balance in play money</span>
-              </li>
-              <li className="flex items-start">
-                <span className="text-green-400 mr-2">✓</span>
-                <span>Real-time market prices from live exchanges</span>
-              </li>
-              <li className="flex items-start">
-                <span className="text-green-400 mr-2">✓</span>
-                <span>Track your portfolio and trading history</span>
-              </li>
-              <li className="flex items-start">
-                <span className="text-green-400 mr-2">✓</span>
-                <span>Practice risk-free with virtual money</span>
-              </li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    )
-  }
+  // ===== ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS =====
+  // This is the "Rules of Hooks" - hooks must be called in the same order every render
   
   // markets you track
   const [symbols, setSymbols] = useState<SymbolConfig[]>([
@@ -176,9 +101,10 @@ export default function PlaygroundPage() {
         
         // Check if response is ok
         if (!response.ok) {
-          // If it's a 401 or 404, use defaults (new user)
-          if (response.status === 401 || response.status === 404) {
-            console.log('New user or no portfolio found, using defaults')
+          // If it's a 401, 404, or 500, use defaults
+          // This allows the app to work even without database setup
+          if (response.status === 401 || response.status === 404 || response.status === 500) {
+            console.warn(`Portfolio API returned ${response.status}, using defaults. This is normal if database is not set up yet.`)
             setBalance(100000)
             setHoldings({})
             setHistory([])
@@ -189,13 +115,15 @@ export default function PlaygroundPage() {
         }
         
         const data = await response.json()
+        console.log('Portfolio loaded from database:', data)
         setBalance(data.balance || 100000)
         setHoldings(data.holdings || {})
         setHistory(data.history || [])
         setIsHydrated(true)
       } catch (error) {
-        console.error('Error loading portfolio:', error)
+        console.warn('Error loading portfolio, using defaults:', error)
         // Set defaults if loading fails - don't block the user
+        // Portfolio will work with localStorage-like behavior
         setBalance(100000)
         setHoldings({})
         setHistory([])
@@ -213,13 +141,20 @@ export default function PlaygroundPage() {
     const timeoutId = setTimeout(async () => {
       setIsSaving(true)
       try {
-        await fetch('/api/portfolio', {
+        const response = await fetch('/api/portfolio', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ balance, holdings, history }),
         })
+        
+        if (response.ok) {
+          console.log('Portfolio saved successfully')
+        } else {
+          console.warn('Portfolio save failed, but continuing (app works without database)')
+        }
       } catch (error) {
-        console.error('Error saving portfolio:', error)
+        console.warn('Error saving portfolio (app continues to work):', error)
+        // Don't throw - app continues to work without persistence
       } finally {
         setIsSaving(false)
       }
@@ -227,8 +162,33 @@ export default function PlaygroundPage() {
 
     return () => clearTimeout(timeoutId)
   }, [balance, holdings, history, isHydrated, user, isSaving])
-
-  // trade logic
+  
+  // ===== HANDLER FUNCTIONS =====
+  
+  // Add new symbol to watchlist
+  function handleAddSymbol() {
+    const trimmed = newSymbol.trim().toUpperCase()
+    if (!trimmed) return
+    
+    // Check if symbol already exists
+    if (symbols.some(s => s.symbol === trimmed)) {
+      alert(`${trimmed} is already in your watchlist`)
+      return
+    }
+    
+    // Determine currency based on symbol suffix
+    const currency = trimmed.endsWith('.AX') ? 'AUD' : 'USD'
+    
+    // Add new symbol
+    setSymbols(prev => [...prev, { 
+      symbol: trimmed, 
+      name: trimmed, // Will show actual name once price loads
+      currency 
+    }])
+    setNewSymbol('')
+  }
+  
+  // Trade execution function
   function executeTrade(payload: {
     symbol: string
     side: "buy" | "sell"
@@ -263,7 +223,7 @@ export default function PlaygroundPage() {
     } else {
       const prevHold = holdings[symbol] || { qty: 0, avg: 0 }
       if (qty > prevHold.qty) {
-        alert("You’re trying to sell more than you own.")
+        alert("You're trying to sell more than you own.")
         return
       }
       setHoldings(h => {
@@ -281,19 +241,87 @@ export default function PlaygroundPage() {
       ])
     }
   }
-
-  // add ticker handler
-  function handleAddSymbol() {
-    const sym = newSymbol.trim().toUpperCase()
-    if (!sym) return
-    if (symbols.some(s => s.symbol === sym)) {
-      setNewSymbol("")
-      return
-    }
-    setSymbols(prev => [...prev, { symbol: sym, name: sym, currency: "USD" }])
-    setNewSymbol("")
+  
+  // ===== CONDITIONAL RENDERING BASED ON AUTH STATE =====
+  // Show loading state while checking authentication
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-cyan-400 mx-auto mb-4"></div>
+          <p className="text-white text-xl">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+  
+  // Show sign-in page if user is not authenticated
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden">
+        {/* Animated background orbs */}
+        <div className="absolute top-20 left-20 w-96 h-96 bg-purple-500 rounded-full filter blur-3xl opacity-30 animate-float" 
+             style={{
+               boxShadow: '0 0 100px 50px rgba(139, 92, 246, 0.3)'
+             }}></div>
+        <div className="absolute bottom-20 right-20 w-96 h-96 bg-cyan-500 rounded-full filter blur-3xl opacity-30 animate-float" 
+             style={{
+               boxShadow: '0 0 100px 50px rgba(6, 182, 212, 0.3)',
+               animationDelay: '2s'
+             }}></div>
+        
+        <div className="relative z-10 max-w-md w-full mx-4 p-8 bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 shadow-2xl">
+          <div className="text-center mb-8">
+            <div className="text-6xl mb-4">🎮</div>
+            <h1 className="text-4xl font-black text-white mb-4">
+              Join the Trading Playground
+            </h1>
+            <p className="text-slate-300 text-lg">
+              Sign in to start practicing with <span className="text-cyan-400 font-bold">$100,000</span> in play money
+            </p>
+          </div>
+          
+          <div className="space-y-4">
+            <SignUpButton mode="modal">
+              <button className="w-full px-8 py-4 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-lg font-bold shadow-lg hover:shadow-cyan-500/50 transition-all duration-300 hover:scale-105">
+                Sign Up - It's Free
+              </button>
+            </SignUpButton>
+            
+            <SignInButton mode="modal">
+              <button className="w-full px-8 py-4 rounded-xl bg-white/10 backdrop-blur-md border-2 border-white/20 text-white text-lg font-bold hover:bg-white/20 transition-all duration-300">
+                Already have an account? Sign In
+              </button>
+            </SignInButton>
+          </div>
+          
+          <div className="mt-8 pt-6 border-t border-white/10">
+            <h3 className="text-white font-semibold mb-3 text-center">What you'll get:</h3>
+            <ul className="space-y-2 text-slate-300">
+              <li className="flex items-start">
+                <span className="text-green-400 mr-2">✓</span>
+                <span>$100,000 starting balance in play money</span>
+              </li>
+              <li className="flex items-start">
+                <span className="text-green-400 mr-2">✓</span>
+                <span>Real-time market prices from live exchanges</span>
+              </li>
+              <li className="flex items-start">
+                <span className="text-green-400 mr-2">✓</span>
+                <span>Track your portfolio and trading history</span>
+              </li>
+              <li className="flex items-start">
+                <span className="text-green-400 mr-2">✓</span>
+                <span>Practice risk-free with virtual money</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    )
   }
 
+  // Main playground UI (authenticated users only)
   return (
     <div className={styles.root} style={{ position: 'relative' }}>
       {/* Animated background gradients */}
