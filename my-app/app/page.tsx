@@ -61,16 +61,6 @@ export default function Home() {
                boxShadow: '0 0 100px 50px rgba(6, 182, 212, 0.3), 0 0 200px 100px rgba(6, 182, 212, 0.2)'
              }}></div>
         
-        {/* Particle effect overlay */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          {[...Array(20)].map((_, i) => {
-            // Use index-based deterministic values instead of Math.random()
-            const left = (i * 17 + 13) % 100;
-            const top = (i * 23 + 7) % 100;
-            const duration = 3 + (i % 4);
-            const delay = (i * 0.3) % 5;
-            
-            return (
         {/* Particle effect overlay - only render on client */}
         {mounted && (
           <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -79,16 +69,6 @@ export default function Home() {
                 key={i}
                 className="absolute w-1 h-1 bg-white rounded-full"
                 style={{
-                  left: `${left}%`,
-                  top: `${top}%`,
-                  animation: `particle-float ${duration}s ease-in-out infinite`,
-                  animationDelay: `${delay}s`,
-                  opacity: 0.6
-                }}
-              />
-            );
-          })}
-        </div>
                   left: `${particle.left}%`,
                   top: `${particle.top}%`,
                   animation: `particle-float ${particle.duration}s ease-in-out infinite`,
