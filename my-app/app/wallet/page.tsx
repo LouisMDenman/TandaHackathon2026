@@ -1,6 +1,6 @@
 /**
  * Wallet Balance Checker Page
- * Main page for checking Bitcoin and Ethereum wallet balances
+ * Main page for checking Bitcoin, Ethereum, and Solana wallet balances
  */
 
 'use client';
@@ -12,8 +12,9 @@ import { detectAndValidateKey } from '@/lib/bitcoin/detectKeyType';
 import { scanAddressesWithGapLimit } from '@/lib/bitcoin/scanAddresses';
 import { autoDetectAddressFormat } from '@/lib/bitcoin/autoDetectFormat';
 import { calculateTotalBalance } from '@/lib/api/blockstream';
-import { fetchBTCPrice, fetchETHPrice } from '@/lib/api/coingecko';
+import { fetchBTCPrice, fetchETHPrice, fetchSOLPrice } from '@/lib/api/coingecko';
 import { fetchEthBalance } from '@/lib/api/ethereum';
+import { fetchSolBalance } from '@/lib/api/solana';
 import { satoshisToAUD } from '@/lib/utils/format';
 import { NETWORKS } from '@/lib/bitcoin/constants';
 import WalletInput from '@/components/WalletInput';
@@ -23,7 +24,7 @@ import ErrorDisplay from '@/components/ErrorDisplay';
 
 type ViewState = 'input' | 'loading' | 'results' | 'error';
 type ErrorType = 'validation' | 'network' | 'api' | 'unknown';
-type CryptoType = 'BTC' | 'ETH';
+type CryptoType = 'BTC' | 'ETH' | 'SOL';
 
 export default function WalletPage() {
   // State management
@@ -62,6 +63,9 @@ export default function WalletPage() {
       } else if (info.walletType === 'ethereum' && info.ethereumInfo) {
         // Ethereum flow
         await handleEthereumCheck(info.ethereumInfo.address);
+      } else if (info.walletType === 'solana' && info.solanaInfo) {
+        // Solana flow
+        await handleSolanaCheck(info.solanaInfo.address);
       } else {
         throw new Error('Invalid wallet type');
       }
@@ -168,6 +172,35 @@ export default function WalletPage() {
   };
 
   /**
+   * Handle Solana wallet check
+   */
+  const handleSolanaCheck = async (address: string) => {
+    setCryptoType('SOL');
+
+    // Step 1: Fetch SOL balance
+    setLoadingStatus('Checking Solana balance...');
+    const balanceResult = await fetchSolBalance(address);
+
+    if (balanceResult.status === 'error') {
+      throw new Error(balanceResult.error || 'Failed to fetch Solana balance');
+    }
+
+    setTotalCrypto(balanceResult.balanceInSol);
+    setAddressesScanned(1); // Single address
+    setAddressesWithErrors(0);
+
+    // Step 2: Fetch SOL price
+    setLoadingStatus('Fetching SOL price...');
+    const priceData = await fetchSOLPrice();
+    const audValue = balanceResult.balanceInSol * priceData.aud;
+    setTotalAUD(audValue);
+
+    // Success! Show results
+    setTimestamp(Date.now());
+    setViewState('results');
+  };
+
+  /**
    * Reset to initial state
    */
   const handleReset = () => {
@@ -203,7 +236,7 @@ export default function WalletPage() {
             Crypto Wallet Balance Checker
           </h1>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Check your Bitcoin or Ethereum wallet balance privately and securely.
+            Check your Bitcoin, Ethereum, or Solana wallet balance privately and securely.
             No data is stored, and all checks are done in real-time.
           </p>
         </div>
@@ -264,12 +297,12 @@ export default function WalletPage() {
             </p>
             <p>
               <strong>Read-Only Access:</strong> For Bitcoin, extended public keys only allow us to
-              view addresses and balances. For Ethereum, you provide a public address. Neither can be
+              view addresses and balances. For Ethereum and Solana, you provide a public address. None of these can be
               used to spend or access your funds.
             </p>
             <p>
               <strong>Third-Party APIs:</strong> Balance data is fetched from public blockchain
-              APIs (Blockstream for Bitcoin, Ethereum RPC nodes for Ethereum) and price data from CoinGecko.
+              APIs (Blockstream for Bitcoin, Ethereum RPC nodes for Ethereum, Solana RPC nodes for Solana) and price data from CoinGecko.
               For Bitcoin, during auto-detection, we check up to 3 derived addresses on-chain to determine
               your wallet's address format. These API requests may be logged by the provider (including your
               IP address and the addresses checked). Note that blockchain addresses and their balances are
@@ -277,7 +310,7 @@ export default function WalletPage() {
             </p>
             <p>
               <strong>Client-Side Processing:</strong> All cryptographic operations
-              (address derivation for Bitcoin, checksum validation for Ethereum) happen in your browser.
+              (address derivation for Bitcoin, checksum validation for Ethereum, base58 validation for Solana) happen in your browser.
               Your wallet information is never sent to our servers.
             </p>
           </div>
@@ -326,7 +359,7 @@ export default function WalletPage() {
             </div>
           </div>
 
-          <div>
+          <div className="mb-6">
             <h4 className="font-medium text-gray-900 mb-2">For Ethereum:</h4>
             <div className="space-y-3">
               <div className="flex items-start space-x-3">
@@ -347,6 +380,33 @@ export default function WalletPage() {
                 <div>
                   <p className="text-sm text-gray-600">
                     Fetches balance via Ethereum JSON-RPC (Cloudflare gateway) and displays in ETH and AUD.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <h4 className="font-medium text-gray-900 mb-2">For Solana:</h4>
+            <div className="space-y-3">
+              <div className="flex items-start space-x-3">
+                <div className="flex-shrink-0 w-8 h-8 bg-green-100 rounded-full flex items-center justify-center text-green-600 font-semibold text-sm">
+                  1
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">
+                    Enter your Solana address (base58-encoded). The app validates the address format.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start space-x-3">
+                <div className="flex-shrink-0 w-8 h-8 bg-green-100 rounded-full flex items-center justify-center text-green-600 font-semibold text-sm">
+                  2
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">
+                    Fetches balance via Solana JSON-RPC and displays in SOL and AUD.
                   </p>
                 </div>
               </div>

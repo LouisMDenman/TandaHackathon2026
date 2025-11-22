@@ -22,6 +22,14 @@ export interface ETHPrice {
 }
 
 /**
+ * Solana price in AUD with timestamp
+ */
+export interface SOLPrice {
+  aud: number;
+  timestamp: number;
+}
+
+/**
  * CoinGecko API response structure for Bitcoin
  */
 interface CoinGeckoResponse {
@@ -40,6 +48,15 @@ interface CoinGeckoETHResponse {
 }
 
 /**
+ * CoinGecko API response structure for Solana
+ */
+interface CoinGeckoSOLResponse {
+  solana: {
+    aud: number;
+  };
+}
+
+/**
  * In-memory cache for BTC price
  * Stores the last fetched price with timestamp
  */
@@ -50,6 +67,12 @@ let priceCache: BTCPrice | null = null;
  * Stores the last fetched price with timestamp
  */
 let ethPriceCache: ETHPrice | null = null;
+
+/**
+ * In-memory cache for SOL price
+ * Stores the last fetched price with timestamp
+ */
+let solPriceCache: SOLPrice | null = null;
 
 /**
  * Cache validity duration in milliseconds (60 seconds)
@@ -82,6 +105,21 @@ function isETHCacheValid(): boolean {
 
   const now = Date.now();
   const cacheAge = now - ethPriceCache.timestamp;
+
+  return cacheAge < CACHE_DURATION;
+}
+
+/**
+ * Check if cached SOL price is still valid
+ * @returns True if cache exists and is not expired
+ */
+function isSOLCacheValid(): boolean {
+  if (!solPriceCache) {
+    return false;
+  }
+
+  const now = Date.now();
+  const cacheAge = now - solPriceCache.timestamp;
 
   return cacheAge < CACHE_DURATION;
 }
@@ -203,6 +241,64 @@ export async function fetchETHPrice(): Promise<ETHPrice> {
 }
 
 /**
+ * Fetch SOL/AUD exchange rate from CoinGecko API
+ * Implements short-term in-memory caching (60 seconds)
+ *
+ * @returns Solana price in AUD with timestamp
+ * @throws Error if API request fails
+ */
+export async function fetchSOLPrice(): Promise<SOLPrice> {
+  // Return cached price if still valid
+  if (isSOLCacheValid() && solPriceCache) {
+    return solPriceCache;
+  }
+
+  const url = `${API_CONFIG.coingecko.baseUrl}/simple/price?ids=solana&vs_currencies=aud`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+      },
+      signal: AbortSignal.timeout(API_CONFIG.timeout),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data: CoinGeckoSOLResponse = await response.json();
+
+    // Validate response structure
+    if (!data.solana || typeof data.solana.aud !== 'number') {
+      throw new Error('Invalid response format from CoinGecko API');
+    }
+
+    // Create price object with current timestamp
+    const price: SOLPrice = {
+      aud: data.solana.aud,
+      timestamp: Date.now(),
+    };
+
+    // Update cache
+    solPriceCache = price;
+
+    return price;
+  } catch (error) {
+    // If we have a cached price (even if expired), return it as fallback
+    if (solPriceCache) {
+      console.warn('Failed to fetch fresh SOL price, using cached value:', error);
+      return solPriceCache;
+    }
+
+    // No cached price available, throw error
+    console.error('Failed to fetch SOL price:', error);
+    throw new Error(`Failed to fetch SOL price: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+/**
  * Convert BTC amount to AUD
  *
  * @param btcAmount Amount in BTC
@@ -225,13 +321,24 @@ export function convertETHToAUD(ethAmount: number, price: number): number {
 }
 
 /**
+ * Convert SOL amount to AUD
+ *
+ * @param solAmount Amount in SOL
+ * @param price SOL price in AUD
+ * @returns Amount in AUD
+ */
+export function convertSOLToAUD(solAmount: number, price: number): number {
+  return solAmount * price;
+}
+
+/**
  * Format currency amount for display
  *
  * @param amount Amount to format
- * @param currency Currency type (BTC, ETH, or AUD)
+ * @param currency Currency type (BTC, ETH, SOL, or AUD)
  * @returns Formatted currency string
  */
-export function formatCurrency(amount: number, currency: 'BTC' | 'ETH' | 'AUD'): string {
+export function formatCurrency(amount: number, currency: 'BTC' | 'ETH' | 'SOL' | 'AUD'): string {
   if (currency === 'BTC') {
     // Format BTC with 8 decimal places, removing trailing zeros
     const formatted = amount.toFixed(8);
@@ -260,6 +367,20 @@ export function formatCurrency(amount: number, currency: 'BTC' | 'ETH' | 'AUD'):
     }
 
     return `${trimmed} ETH`;
+  } else if (currency === 'SOL') {
+    // Format SOL with 6 decimal places, removing trailing zeros
+    const formatted = amount.toFixed(6);
+    const trimmed = formatted.replace(/\.?0+$/, '');
+
+    // Ensure at least 2 decimal places
+    const parts = trimmed.split('.');
+    if (parts.length === 1) {
+      return `${trimmed}.00 SOL`;
+    } else if (parts[1].length === 1) {
+      return `${trimmed}0 SOL`;
+    }
+
+    return `${trimmed} SOL`;
   } else {
     // Format AUD with 2 decimal places and thousand separators
     return new Intl.NumberFormat('en-AU', {
