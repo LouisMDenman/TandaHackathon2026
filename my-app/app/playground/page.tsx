@@ -1,10 +1,12 @@
-﻿"use client"
-import React, { useEffect, useState } from "react"
+"use client"
+import React, { useEffect, useMemo, useState } from "react"
+import { useUser, UserButton } from "@clerk/nextjs"
 import usePriceFeed from "./usePriceFeed"
 import TickerCard from "./components/TickerCard"
 import TradeForm from "./components/TradeForm"
 import Portfolio from "./components/Portfolio"
 import HistoryList from "./components/HistoryList"
+import StockChart from "./StockChart"
 import styles from "./playground.module.css"
 
 type SymbolConfig = {
@@ -15,63 +17,11 @@ type SymbolConfig = {
 
 type PricePoint = { t: number; p: number }
 
-// very simple inline SVG line chart
-function PriceChart({ points }: { points: PricePoint[] }) {
-  if (!points || points.length < 2) {
-    return (
-      <div className={styles.chartEmpty}>
-        Not enough price data yet. Leave this tab open for a bit.
-      </div>
-    )
-  }
-
-  const values = points.map(p => p.p)
-  const min = Math.min(...values)
-  const max = Math.max(...values)
-  const span = max - min || 1
-
-  const path = points
-    .map((p, i) => {
-      const x = (i / (points.length - 1)) * 100
-      const y = 100 - ((p.p - min) / span) * 100
-      return `${i === 0 ? "M" : "L"} ${x.toFixed(2)} ${y.toFixed(2)}`
-    })
-    .join(" ")
-
-  return (
-    <svg
-      className={styles.chartSvg}
-      viewBox="0 0 100 100"
-      preserveAspectRatio="none"
-    >
-      <defs>
-        <linearGradient id="chartStroke" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0" stopColor="#38bdf8" />
-          <stop offset="1" stopColor="#22c55e" />
-        </linearGradient>
-        <linearGradient id="chartFill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="rgba(56,189,248,0.35)" />
-          <stop offset="1" stopColor="rgba(15,23,42,0.0)" />
-        </linearGradient>
-      </defs>
-      <path
-        d={path}
-        fill="none"
-        stroke="url(#chartStroke)"
-        strokeWidth="1.8"
-        strokeLinejoin="round"
-        strokeLinecap="round"
-      />
-      <path
-        d={`${path} L 100 100 L 0 100 Z`}
-        fill="url(#chartFill)"
-        stroke="none"
-      />
-    </svg>
-  )
-}
+// ...existing code...
 
 export default function PlaygroundPage() {
+  const { user, isLoaded } = useUser()
+  
   // markets you track
   const [symbols, setSymbols] = useState<SymbolConfig[]>([
     { symbol: "BHP.AX", name: "BHP Group", currency: "AUD" },
@@ -83,29 +33,21 @@ export default function PlaygroundPage() {
   // tab: trading or charts
   const [activeTab, setActiveTab] = useState<"trading" | "charts">("trading")
 
-  // live prices
-  const prices = usePriceFeed(symbols.map(s => s.symbol))
+  // live prices and history feed from API (price + history)
+  const feed = usePriceFeed(symbols.map(s => s.symbol), /* range */ '1W')
 
-  // per-symbol price history for charts
-  const [priceHistory, setPriceHistory] = useState<
-    Record<string, PricePoint[]>
-  >({})
+  // derived map of latest numeric prices for components that expect numbers
+  const latestPrices = useMemo(() => {
+    const m: Record<string, number> = {}
+    for (const s of symbols) {
+      const v = feed[s.symbol]
+      m[s.symbol] = v && typeof v === 'object' && typeof v.price === 'number' ? v.price : 0
+    }
+    return m
+  }, [feed, symbols])
+
   const [chartSymbol, setChartSymbol] = useState<string | null>(null)
-
-  useEffect(() => {
-    const now = Date.now()
-    setPriceHistory(prev => {
-      const next: Record<string, PricePoint[]> = { ...prev }
-      for (const [sym, price] of Object.entries(prices)) {
-        if (!price || price <= 0) continue
-        const arr = next[sym] ? [...next[sym]] : []
-        arr.push({ t: now, p: price })
-        if (arr.length > 80) arr.shift()
-        next[sym] = arr
-      }
-      return next
-    })
-  }, [prices])
+  const [chartRange, setChartRange] = useState<'1D' | '1W' | '1M' | 'ALL'>('1W')
 
   useEffect(() => {
     if (!chartSymbol && symbols.length > 0) {
@@ -137,47 +79,63 @@ export default function PlaygroundPage() {
     setDragIndex(null)
   }
 
-  // wallet state (persisted)
+  // wallet state (persisted to database)
   const [balance, setBalance] = useState<number | null>(null)
   const [holdings, setHoldings] = useState<
     Record<string, { qty: number; avg: number }>
   >({})
   const [history, setHistory] = useState<any[]>([])
   const [isHydrated, setIsHydrated] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
 
+  // Load portfolio from database
   useEffect(() => {
-    try {
-      const rawBal = localStorage.getItem("sandbox_balance")
-      const initBal = rawBal ? JSON.parse(rawBal) : 100000
-      setBalance(initBal)
+    if (!isLoaded || !user) return
 
-      const rawHold = localStorage.getItem("sandbox_holdings")
-      setHoldings(rawHold ? JSON.parse(rawHold) : {})
-
-      const rawHist = localStorage.getItem("sandbox_history")
-      setHistory(rawHist ? JSON.parse(rawHist) : [])
-    } catch {
-      setBalance(100000)
-      setHoldings({})
-      setHistory([])
+    async function loadPortfolio() {
+      try {
+        const response = await fetch('/api/portfolio')
+        if (!response.ok) throw new Error('Failed to load portfolio')
+        
+        const data = await response.json()
+        setBalance(data.balance || 100000)
+        setHoldings(data.holdings || {})
+        setHistory(data.history || [])
+        setIsHydrated(true)
+      } catch (error) {
+        console.error('Error loading portfolio:', error)
+        // Set defaults if loading fails
+        setBalance(100000)
+        setHoldings({})
+        setHistory([])
+        setIsHydrated(true)
+      }
     }
-    setIsHydrated(true)
-  }, [])
 
-  useEffect(() => {
-    if (!isHydrated) return
-    localStorage.setItem("sandbox_balance", JSON.stringify(balance))
-  }, [balance, isHydrated])
+    loadPortfolio()
+  }, [isLoaded, user])
 
+  // Save portfolio to database (debounced)
   useEffect(() => {
-    if (!isHydrated) return
-    localStorage.setItem("sandbox_holdings", JSON.stringify(holdings))
-  }, [holdings, isHydrated])
+    if (!isHydrated || !user || isSaving) return
 
-  useEffect(() => {
-    if (!isHydrated) return
-    localStorage.setItem("sandbox_history", JSON.stringify(history))
-  }, [history, isHydrated])
+    const timeoutId = setTimeout(async () => {
+      setIsSaving(true)
+      try {
+        await fetch('/api/portfolio', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ balance, holdings, history }),
+        })
+      } catch (error) {
+        console.error('Error saving portfolio:', error)
+      } finally {
+        setIsSaving(false)
+      }
+    }, 1000) // Debounce for 1 second
+
+    return () => clearTimeout(timeoutId)
+  }, [balance, holdings, history, isHydrated, user, isSaving])
 
   // trade logic
   function executeTrade(payload: {
@@ -246,7 +204,51 @@ export default function PlaygroundPage() {
   }
 
   return (
-    <div className={styles.root}>
+    <div className={styles.root} style={{ position: 'relative' }}>
+      {/* Animated background gradients */}
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: -1,
+        overflow: 'hidden',
+        pointerEvents: 'none'
+      }}>
+        <div style={{
+          position: 'absolute',
+          top: '10%',
+          left: '10%',
+          width: '500px',
+          height: '500px',
+          background: 'radial-gradient(circle, rgba(59, 130, 246, 0.15) 0%, transparent 70%)',
+          filter: 'blur(60px)',
+          animation: 'float 20s ease-in-out infinite'
+        }} />
+        <div style={{
+          position: 'absolute',
+          top: '50%',
+          right: '10%',
+          width: '400px',
+          height: '400px',
+          background: 'radial-gradient(circle, rgba(139, 92, 246, 0.12) 0%, transparent 70%)',
+          filter: 'blur(60px)',
+          animation: 'float 18s ease-in-out infinite',
+          animationDelay: '-5s'
+        }} />
+        <div style={{
+          position: 'absolute',
+          bottom: '10%',
+          left: '50%',
+          width: '450px',
+          height: '450px',
+          background: 'radial-gradient(circle, rgba(6, 182, 212, 0.1) 0%, transparent 70%)',
+          filter: 'blur(60px)',
+          animation: 'float 22s ease-in-out infinite',
+          animationDelay: '-10s'
+        }} />
+      </div>
       <header className={styles.header}>
         <div>
           <div className={styles.title}>Play Money Markets</div>
@@ -259,15 +261,28 @@ export default function PlaygroundPage() {
           </p>
         </div>
 
-        <div className={styles.balance}>
-          <span className={styles.balanceLabel}>Play money balance</span>
-          <div className={styles.balanceValue}>
-            {balance == null
-              ? "—"
-              : balance.toLocaleString(undefined, {
-                  style: "currency",
-                  currency: "USD",
-                })}
+        <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+          <div className={styles.balance}>
+            <span className={styles.balanceLabel}>Play money balance</span>
+            <div className={styles.balanceValue}>
+              {balance == null
+                ? "—"
+                : balance.toLocaleString(undefined, {
+                    style: "currency",
+                    currency: "USD",
+                  })}
+            </div>
+          </div>
+          
+          <div style={{ position: 'relative', zIndex: 1 }}>
+            <UserButton 
+              afterSignOutUrl="/"
+              appearance={{
+                elements: {
+                  avatarBox: "w-12 h-12 ring-2 ring-blue-500/20 hover:ring-blue-500/40 transition-all"
+                }
+              }}
+            />
           </div>
         </div>
       </header>
@@ -339,7 +354,7 @@ export default function PlaygroundPage() {
                   <TickerCard
                     symbol={s.symbol}
                     name={s.name}
-                    price={prices[s.symbol]}
+                    price={latestPrices[s.symbol]}
                     currency={s.currency}
                   />
                 </div>
@@ -357,7 +372,7 @@ export default function PlaygroundPage() {
               <div className={styles.tradeFormWrapper}>
                 <TradeForm
                   symbols={symbols}
-                  prices={prices}
+                  prices={latestPrices}
                   onExecute={executeTrade}
                 />
               </div>
@@ -366,7 +381,7 @@ export default function PlaygroundPage() {
                 <p className={styles.sectionHelpSmall}>
                   What you currently own and its market value.
                 </p>
-                <Portfolio holdings={holdings} prices={prices} />
+                <Portfolio holdings={holdings} prices={latestPrices} />
               </div>
             </div>
           </section>
@@ -383,36 +398,68 @@ export default function PlaygroundPage() {
 
       {/* CHARTS TAB */}
       {activeTab === "charts" && (
-        <main className={styles.chartsLayout}>
+        <main className={`${styles.chartsLayout} fade-in`}>
           <section className={styles.chartsSidebar}>
             <h2 className={styles.sectionTitle}>Your markets</h2>
             <p className={styles.sectionHelp}>
               Select a symbol to view its recent price movement.
             </p>
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '18px', justifyContent: 'center' }}>
+              {['1D', '1W', '1M', 'ALL'].map(range => (
+                <button
+                  key={range}
+                  className="cool-btn"
+                  style={{
+                    background: chartRange === range ? 'linear-gradient(90deg, #3b82f6 0%, #06b6d4 100%)' : 'rgba(255,255,255,0.18)',
+                    color: chartRange === range ? '#fff' : '#222',
+                    fontWeight: chartRange === range ? 700 : 500,
+                    border: chartRange === range ? '2px solid #3b82f6' : '2px solid #e5e7eb',
+                    boxShadow: chartRange === range ? '0 8px 32px rgba(59,130,246,0.22)' : '0 2px 8px rgba(59,130,246,0.10)',
+                    cursor: 'pointer',
+                    position: 'relative',
+                    zIndex: 10,
+                  }}
+                  onClick={() => setChartRange(range as typeof chartRange)}
+                >
+                  {range}
+                </button>
+              ))}
+            </div>
             <div className={styles.chartsSymbolList}>
               {symbols.map(s => {
-                const lastPrice = prices[s.symbol]
+                const lastPrice = feed[s.symbol] ? feed[s.symbol]!.price : null
                 const isActive = chartSymbol === s.symbol
                 return (
                   <button
                     key={s.symbol}
-                    className={
-                      isActive
-                        ? `${styles.chartsSymbolRow} ${styles.chartsSymbolRowActive}`
-                        : styles.chartsSymbolRow
-                    }
+                    className="cool-btn"
+                    style={{
+                      marginBottom: '12px',
+                      boxShadow: isActive ? '0 8px 32px rgba(59,130,246,0.22)' : '0 2px 8px rgba(59,130,246,0.10)',
+                      border: isActive ? '2px solid #3b82f6' : '2px solid #e5e7eb',
+                      background: isActive ? 'linear-gradient(90deg, #3b82f6 0%, #06b6d4 100%)' : 'rgba(255,255,255,0.18)',
+                      color: isActive ? '#fff' : '#222',
+                      transition: 'all 0.2s',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      width: '100%',
+                      padding: '16px 20px',
+                      fontWeight: isActive ? 700 : 500,
+                      fontSize: '1rem',
+                      cursor: 'pointer',
+                      position: 'relative',
+                      zIndex: 10,
+                    }}
                     onClick={() => setChartSymbol(s.symbol)}
                   >
-                    <div>
-                      <div className={styles.chartsSymbol}>{s.symbol}</div>
-                      <div className={styles.chartsSymbolName}>{s.name}</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                      <div style={{ fontSize: '1.1em', fontWeight: 700 }}>{s.symbol}</div>
+                      <div style={{ fontSize: '0.95em', color: isActive ? '#e0f2fe' : '#555' }}>{s.name}</div>
                     </div>
-                    <div className={styles.chartsSymbolPrice}>
-                      {lastPrice
-                        ? lastPrice.toLocaleString(undefined, {
-                            style: "currency",
-                            currency: s.currency,
-                          })
+                      <div style={{ fontSize: '1.1em', fontWeight: 600 }}>
+                      {typeof lastPrice === 'number'
+                        ? new Intl.NumberFormat(undefined, { style: 'currency', currency: s.currency }).format(lastPrice)
                         : "—"}
                     </div>
                   </button>
@@ -421,21 +468,35 @@ export default function PlaygroundPage() {
             </div>
           </section>
 
-          <section className={styles.chartsMain}>
+          <section className={`${styles.chartsMain} fade-in`}>
             <h2 className={styles.sectionTitle}>Price graph</h2>
             <p className={styles.sectionHelp}>
               This graph shows prices collected while this app is open.
             </p>
-            <div className={styles.chartCard}>
+            <div className={`${styles.chartCard} glass-card`} style={{ minHeight: '340px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
               <div className={styles.chartHeader}>
-                <div className={styles.chartTitle}>
+                <div className={styles.chartTitle} style={{ fontSize: '1.3em', fontWeight: 700, marginBottom: '8px' }}>
                   {chartSymbol || "Select a symbol"}
                 </div>
               </div>
               {chartSymbol ? (
-                <PriceChart points={priceHistory[chartSymbol] ?? []} />
+                feed[chartSymbol] && feed[chartSymbol]!.history && feed[chartSymbol]!.history.length > 1 ? (
+                  <StockChart
+                    symbol={chartSymbol}
+                    history={feed[chartSymbol]!.history.map((p: { t: number; p: number }) => ({
+                      time: chartRange === '1D'
+                        ? new Date(p.t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                        : new Date(p.t).toLocaleDateString(),
+                      price: p.p
+                    }))}
+                  />
+                ) : (
+                  <div className={styles.chartEmpty} style={{ color: '#555', fontSize: '1.1em', marginTop: '24px' }}>
+                    Not enough price data yet. Leave this tab open for a bit.
+                  </div>
+                )
               ) : (
-                <div className={styles.chartEmpty}>
+                <div className={styles.chartEmpty} style={{ color: '#555', fontSize: '1.1em', marginTop: '24px' }}>
                   Click a symbol on the left to see its graph.
                 </div>
               )}

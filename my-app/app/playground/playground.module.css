@@ -1,137 +1,300 @@
 :root {
-  --bg-primary: #0a0e17;
-  --bg-card: #111827;
-  --bg-card-inner: #1a2332;
-  --bg-input: #0d1117;
-  --border-default: #2d3748;
+  --bg-primary: transparent;
+  --bg-card: #ffffff;
+  --bg-card-inner: #f8fafc;
+  --bg-input: #ffffff;
+  --border-default: #e2e8f0;
   --border-accent: #3b82f6;
-  --text-primary: #f9fafb;
-  --text-secondary: #e5e7eb;
-  --text-muted: #9ca3af;
-  --text-dim: #6b7280;
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
+  --text-muted: #64748b;
+  --text-dim: #94a3b8;
   --accent-blue: #3b82f6;
   --accent-cyan: #06b6d4;
   --accent-green: #10b981;
   --accent-red: #ef4444;
   --accent-purple: #8b5cf6;
-  --card-radius: 16px;
-  --card-radius-sm: 12px;
+  --card-radius: 24px;
+  --card-radius-sm: 16px;
 }
 
-/* PAGE */
+/* PAGE - ENHANCED */
 .root {
   box-sizing: border-box;
   min-height: 100vh;
-  padding: 24px 32px 40px;
-  background: var(--bg-primary);
-  background-image:
-    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(59, 130, 246, 0.12), transparent),
-    radial-gradient(ellipse 60% 60% at 100% 0%, rgba(6, 182, 212, 0.08), transparent);
+  padding: 48px 64px 64px;
+  background: transparent;
   color: var(--text-primary);
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 32px;
+  max-width: 1800px;
+  margin: 0 auto;
+  position: relative;
+  z-index: 1;
+}
+
+.root::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: 
+    radial-gradient(ellipse at top, rgba(59, 130, 246, 0.05) 0%, transparent 50%),
+    radial-gradient(ellipse at bottom, rgba(139, 92, 246, 0.05) 0%, transparent 50%);
+  z-index: -1;
+  animation: background-pulse 15s ease-in-out infinite;
+}
+
+@keyframes background-pulse {
+  0%, 100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 /* HEADER */
 .header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 24px;
+  gap: 32px;
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(20px);
+  padding: 32px 40px;
+  border-radius: 24px;
+  box-shadow: 
+    0 12px 48px rgba(0, 0, 0, 0.08),
+    0 0 0 1px rgba(255, 255, 255, 0.5) inset;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+.header::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.6), transparent);
+  animation: shimmer-header 8s infinite;
+  pointer-events: none;
+}
+
+@keyframes shimmer-header {
+  0% {
+    left: -100%;
+  }
+  50%, 100% {
+    left: 200%;
+  }
 }
 
 .title {
-  font-size: 32px;
-  font-weight: 700;
-  color: #fff;
-  margin-bottom: 4px;
-  letter-spacing: -0.02em;
+  font-size: 48px;
+  font-weight: 800;
+  background: linear-gradient(135deg, #1e293b 0%, #3b82f6 50%, #8b5cf6 100%);
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 8px;
+  letter-spacing: -0.03em;
+  animation: gradient-flow 6s ease infinite;
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes gradient-flow {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
 }
 
 .subtitle {
   margin: 0;
-  font-size: 15px;
-  font-weight: 500;
-  color: var(--accent-cyan);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--accent-blue);
+  letter-spacing: -0.01em;
 }
 
 .subtitleSmall {
-  margin: 4px 0 0;
-  font-size: 13px;
+  margin: 8px 0 0;
+  font-size: 15px;
   color: var(--text-muted);
+  font-weight: 400;
 }
 
 /* BALANCE PILL */
 .balance {
-  min-width: 240px;
-  padding: 18px 24px;
+  min-width: 280px;
+  padding: 24px 32px;
   border-radius: 20px;
-  background: linear-gradient(135deg, #1e3a5f 0%, #1e40af 100%);
-  border: 1px solid rgba(59, 130, 246, 0.4);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 
+    0 12px 48px rgba(59, 130, 246, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.2) inset;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.balance::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.15) 0%, transparent 60%);
+  animation: pulse-rotate 4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes pulse-rotate {
+  0%, 100% {
+    transform: rotate(0deg) scale(1);
+    opacity: 0.3;
+  }
+  50% {
+    transform: rotate(180deg) scale(1.1);
+    opacity: 0.6;
+  }
+}
+
+.balance:hover {
+  transform: translateY(-6px) scale(1.02);
+  box-shadow: 
+    0 20px 80px rgba(59, 130, 246, 0.5),
+    0 0 60px rgba(139, 92, 246, 0.3),
+    0 0 0 1px rgba(255, 255, 255, 0.4) inset;
 }
 
 .balanceLabel {
-  font-size: 11px;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.15em;
-  color: rgba(255, 255, 255, 0.7);
-  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+  font-weight: 700;
 }
 
 .balanceValue {
-  font-size: 24px;
-  font-weight: 700;
+  font-size: 36px;
+  font-weight: 900;
   color: #fff;
-  margin-top: 2px;
+  margin-top: 4px;
+  letter-spacing: -0.02em;
+  text-shadow: 
+    0 0 10px rgba(255, 255, 255, 0.5),
+    0 0 20px rgba(59, 130, 246, 0.5),
+    0 0 30px rgba(139, 92, 246, 0.3);
+  animation: value-glow 3s ease-in-out infinite;
+}
+
+@keyframes value-glow {
+  0%, 100% {
+    text-shadow: 
+      0 0 10px rgba(255, 255, 255, 0.5),
+      0 0 20px rgba(59, 130, 246, 0.5),
+      0 0 30px rgba(139, 92, 246, 0.3);
+  }
+  50% {
+    text-shadow: 
+      0 0 15px rgba(255, 255, 255, 0.8),
+      0 0 30px rgba(59, 130, 246, 0.8),
+      0 0 45px rgba(139, 92, 246, 0.6);
+  }
 }
 
 /* TABS */
 .tabs {
-  margin-top: 4px;
+  margin-top: 0;
   display: inline-flex;
-  gap: 4px;
-  padding: 4px;
-  border-radius: 12px;
-  background: var(--bg-card);
+  gap: 6px;
+  padding: 6px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.95);
   border: 1px solid var(--border-default);
   align-self: flex-start;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
 }
 
 .tabButton {
-  padding: 8px 20px;
-  border-radius: 8px;
+  padding: 12px 32px;
+  border-radius: 12px;
   border: none;
   background: transparent;
   color: var(--text-muted);
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  letter-spacing: 0.02em;
+  position: relative;
+  overflow: hidden;
+}
+
+.tabButton::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+}
+
+.tabButton:hover::before {
+  opacity: 1;
 }
 
 .tabButton:hover {
   color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.05);
+  transform: scale(1.03) translateY(-1px);
 }
 
 .tabButtonActive {
-  background: var(--accent-blue);
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
   color: #fff;
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+  box-shadow: 
+    0 8px 24px rgba(59, 130, 246, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.3) inset;
+  transform: scale(1.03) translateY(-1px);
+}
+
+.tabButtonActive::before {
+  opacity: 0;
 }
 
 /* ADD TICKER BAR */
 .addSymbolBar {
   display: flex;
   align-items: center;
-  gap: 10px;
-  max-width: 500px;
+  gap: 16px;
+  max-width: 700px;
+  background: rgba(255, 255, 255, 0.95);
+  padding: 16px 24px;
+  border-radius: 20px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(148, 163, 184, 0.2);
 }
 
 .addSymbolInputWrapper {
@@ -141,23 +304,25 @@
 
 .addSymbolIcon {
   position: absolute;
-  left: 14px;
+  left: 18px;
   top: 50%;
   transform: translateY(-50%);
-  font-size: 14px;
-  color: var(--text-dim);
+  font-size: 18px;
+  color: var(--accent-blue);
 }
 
 .addSymbolInput {
   width: 100%;
-  padding: 12px 16px 12px 40px;
-  border-radius: 10px;
-  border: 1px solid var(--border-default);
+  padding: 16px 20px 16px 52px;
+  border-radius: 14px;
+  border: 2px solid var(--border-default);
   background: var(--bg-input);
   color: var(--text-primary);
-  font-size: 14px;
+  font-size: 15px;
+  font-weight: 500;
   outline: none;
-  transition: all 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .addSymbolInput::placeholder {
@@ -166,139 +331,217 @@
 
 .addSymbolInput:focus {
   border-color: var(--accent-blue);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+  box-shadow: 
+    0 0 0 4px rgba(59, 130, 246, 0.15),
+    0 4px 16px rgba(59, 130, 246, 0.1);
+  transform: translateY(-2px);
+  background: #ffffff;
+}
+
+.addSymbolInput:hover:not(:focus) {
+  border-color: rgba(59, 130, 246, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
 }
 
 .addSymbolButton {
-  padding: 12px 24px;
-  border-radius: 10px;
+  padding: 16px 36px;
+  border-radius: 14px;
   border: none;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   cursor: pointer;
-  background: var(--accent-green);
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
   color: #fff;
-  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.4);
-  transition: all 0.2s ease;
+  box-shadow: 
+    0 6px 24px rgba(16, 185, 129, 0.35),
+    0 0 0 1px rgba(255, 255, 255, 0.3) inset;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.addSymbolButton::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+  pointer-events: none;
+}
+
+.addSymbolButton:hover::before {
+  width: 300px;
+  height: 300px;
 }
 
 .addSymbolButton:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.5);
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 
+    0 12px 40px rgba(16, 185, 129, 0.5),
+    0 0 0 1px rgba(255, 255, 255, 0.5) inset;
+  background: linear-gradient(135deg, #059669 0%, #10b981 100%);
 }
 
 .addSymbolButton:active {
-  transform: translateY(0);
+  transform: translateY(-1px) scale(0.98);
 }
 
 /* MAIN GRID */
 .grid {
   display: grid;
-  grid-template-columns: 280px 1fr 320px;
-  gap: 20px;
+  grid-template-columns: 320px 1fr 380px;
+  gap: 32px;
   align-items: flex-start;
 }
 
-/* CARD SHELL – now white with light border */
+/* CARD SHELL – now white with light border and enhanced glassmorphism */
 .tickers,
 .tradeArea,
 .historyList,
 .chartsSidebar,
 .chartsMain {
   border-radius: var(--card-radius);
-  padding: 20px;
-  background: #ffffff;              /* <-- white cards */
-  border: 1px solid #e5e7eb;        /* <-- light grey border */
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
-  color: #000;
+  padding: 32px;
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  box-shadow: 
+    0 12px 48px rgba(0, 0, 0, 0.08),
+    0 0 0 1px rgba(255, 255, 255, 0.5) inset;
+  color: var(--text-primary);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
 }
 
-/* Make all text inside these cards black */
-.tickers *,
-.tradeArea *,
-.historyList *,
-.chartsSidebar *,
-.chartsMain * {
-  color: #000;
+.tickers::before,
+.tradeArea::before,
+.historyList::before,
+.chartsSidebar::before,
+.chartsMain::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+  transition: left 0.6s;
+  pointer-events: none;
+}
+
+.tickers:hover::before,
+.tradeArea:hover::before,
+.historyList:hover::before {
+  left: 100%;
+}
+
+.tickers:hover,
+.tradeArea:hover,
+.historyList:hover {
+  box-shadow: 
+    0 20px 80px rgba(59, 130, 246, 0.25),
+    0 0 0 1px rgba(59, 130, 246, 0.3) inset,
+    0 0 60px rgba(139, 92, 246, 0.15);
+  transform: translateY(-6px) scale(1.01);
+  border-color: rgba(59, 130, 246, 0.4);
+}
+
+.chartsSidebar:hover,
+.chartsMain:hover {
+  /* No hover effect for charts sections */
 }
 
 /* SECTION TITLES */
 .sectionTitle {
-  margin: 0 0 6px;
-  font-size: 12px;
+  margin: 0 0 12px;
+  font-size: 14px;
   text-transform: uppercase;
-  letter-spacing: 0.15em;
-  font-weight: 700;
-  color: var(--accent-cyan);
+  letter-spacing: 0.12em;
+  font-weight: 800;
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .sectionHelp {
-  margin: 0 0 16px;
-  font-size: 13px;
+  margin: 0 0 24px;
+  font-size: 15px;
   color: var(--text-muted);
-  line-height: 1.5;
+  line-height: 1.6;
+  font-weight: 400;
 }
 
 .sectionHelpSmall {
-  margin: 0 0 12px;
-  font-size: 12px;
+  margin: 0 0 16px;
+  font-size: 13px;
   color: var(--text-dim);
+  line-height: 1.5;
 }
 
 .subSectionTitle {
-  margin: 0 0 8px;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-secondary);
+  margin: 0 0 12px;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
 }
 
 /* TICKER LIST */
 .tickerList {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 16px;
 }
 
 .tickerItem {
-  padding: 14px 16px;
+  padding: 0;
   border-radius: var(--card-radius-sm);
-  background: var(--bg-card-inner);
-  border: 1px solid var(--border-default);
+  background: transparent;
+  border: none;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  cursor: pointer;
-  transition: all 0.2s ease;
+  cursor: grab;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: visible;
 }
 
-.tickerItem:hover {
-  border-color: var(--accent-blue);
-  background: rgba(59, 130, 246, 0.1);
-  transform: translateX(4px);
+.tickerItem:active {
+  cursor: grabbing;
 }
 
 .tickerItemDragging {
-  box-shadow: 0 12px 32px rgba(59, 130, 246, 0.3);
-  border-color: var(--accent-blue);
+  opacity: 0.8;
+  transform: scale(1.05);
 }
 
 .tickerSymbol {
-  font-size: 15px;
-  font-weight: 700;
+  font-size: 17px;
+  font-weight: 800;
   color: var(--accent-blue);
+  letter-spacing: -0.01em;
 }
 
 .tickerName {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-muted);
-  margin-top: 2px;
+  margin-top: 4px;
+  font-weight: 500;
 }
 
 .tickerPrice {
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 16px;
+  font-weight: 700;
   color: var(--text-primary);
   text-align: right;
 }
@@ -307,14 +550,52 @@
 .tradeArea {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 32px;
+}
+
+.tradeAndPortfolio {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
 }
 
 .tradeFormWrapper {
-  padding: 20px;
-  background: var(--bg-card-inner);
+  padding: 28px;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
   border-radius: var(--card-radius-sm);
-  border: 1px solid var(--border-default);
+  border: 2px solid var(--border-default);
+  box-shadow: 
+    0 8px 24px rgba(0, 0, 0, 0.05),
+    0 0 0 1px rgba(255, 255, 255, 0.9) inset;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.tradeFormWrapper::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.08) 0%, transparent 70%);
+  opacity: 0;
+  transition: opacity 0.4s;
+  pointer-events: none;
+}
+
+.tradeFormWrapper:hover::before {
+  opacity: 1;
+}
+
+.tradeFormWrapper:hover {
+  border-color: var(--accent-blue);
+  box-shadow: 
+    0 16px 48px rgba(59, 130, 246, 0.2),
+    0 0 0 1px rgba(59, 130, 246, 0.4) inset,
+    0 8px 32px rgba(16, 185, 129, 0.1);
+  transform: scale(1.02) translateY(-2px);
 }
 
 .tradeFormTitle {
@@ -412,10 +693,42 @@
 
 /* PORTFOLIO */
 .portfolioWrapper {
-  padding: 20px;
-  background: var(--bg-card-inner);
+  padding: 28px;
+  background: linear-gradient(135deg, #faf5ff 0%, #f8fafc 100%);
   border-radius: var(--card-radius-sm);
-  border: 1px solid var(--border-default);
+  border: 2px solid rgba(139, 92, 246, 0.15);
+  box-shadow: 
+    0 8px 24px rgba(139, 92, 246, 0.08),
+    0 0 0 1px rgba(255, 255, 255, 0.9) inset;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.portfolioWrapper::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.1) 0%, transparent 70%);
+  opacity: 0;
+  transition: opacity 0.4s;
+  pointer-events: none;
+}
+
+.portfolioWrapper:hover::before {
+  opacity: 1;
+}
+
+.portfolioWrapper:hover {
+  border-color: var(--accent-purple);
+  box-shadow: 
+    0 16px 48px rgba(139, 92, 246, 0.25),
+    0 0 0 1px rgba(139, 92, 246, 0.4) inset,
+    0 8px 32px rgba(139, 92, 246, 0.15);
+  transform: scale(1.02) translateY(-2px);
 }
 
 .portfolioTitle {
@@ -533,124 +846,126 @@
   background: rgba(59, 130, 246, 0.05);
 }
 
+/* CHARTS LAYOUT */
+.chartsLayout {
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  gap: 32px;
+  align-items: flex-start;
+}
+
+.chartsSidebar {
+  position: sticky;
+  top: 32px;
+}
+
+.chartsSymbolList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.chartsSymbolRow {
+  text-align: left;
+  width: 100%;
+  position: relative;
+  z-index: 1;
+}
+
+.chartsSymbolRowActive {
+  /* Active state handled by inline styles */
+}
+
+.chartCard {
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border-radius: 16px;
+  padding: 24px;
+  border: 2px solid rgba(59, 130, 246, 0.2);
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.06),
+    0 0 0 1px rgba(255, 255, 255, 0.9) inset;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.chartCard::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.08), transparent);
+  transition: left 0.8s;
+  pointer-events: none;
+}
+
+.chartCard:hover::before {
+  left: 100%;
+}
+
+.chartCard:hover {
+  border-color: rgba(59, 130, 246, 0.4);
+  box-shadow: 
+    0 16px 48px rgba(59, 130, 246, 0.15),
+    0 0 0 1px rgba(59, 130, 246, 0.3) inset;
+  transform: scale(1.01);
+}
+
 /* RESPONSIVE */
-@media (max-width: 1200px) {
+@media (max-width: 1400px) {
   .grid {
-    grid-template-columns: 260px 1fr;
+    grid-template-columns: 300px 1fr 360px;
+    gap: 24px;
+  }
+}
+
+@media (max-width: 1200px) {
+  .root {
+    padding: 32px 40px;
+  }
+  .grid {
+    grid-template-columns: 280px 1fr;
+    gap: 24px;
   }
   .historyList {
     grid-column: 1 / -1;
+  }
+  .chartsLayout {
+    grid-template-columns: 320px 1fr;
+    gap: 24px;
   }
 }
 
 @media (max-width: 768px) {
   .root {
-    padding: 16px;
+    padding: 24px;
+    gap: 24px;
   }
   .header {
     flex-direction: column;
-    gap: 16px;
+    gap: 20px;
+    padding: 24px;
   }
-  .grid {
+  .title {
+    font-size: 36px;
+  }
+  .balance {
+    width: 100%;
+    align-items: center;
+  }
+  .grid,
+  .chartsLayout {
     grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  .addSymbolBar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .addSymbolButton {
+    width: 100%;
   }
 }
 
-/***************************************************/
-/* NEW RULES YOU REQUESTED (FONT + BORDERS)        */
-/***************************************************/
-
-/* Make ALL text inside all cards black */
-.tickers *,
-.tradeArea *,
-.historyList *,
-.chartsSidebar *,
-.chartsMain *,
-.tickerItem *,
-.tradeFormWrapper *,
-.portfolioWrapper *,
-.historyInner *,
-.chartCard * {
-  color: #000 !important;
-}
-
-/* Search bar border + black text */
-.addSymbolInput {
-  border: 2px solid #3b82f6 !important;
-  background: #ffffff !important;
-  color: #000 !important;
-}
-
-/* Dropdown border + black text (CSS Modules–safe) */
-:global(select),
-.dropdown,
-.dropdown * {
-  border: 2px solid #3b82f6 !important;
-  background: #ffffff !important;
-  color: #000 !important;
-
-  /***************************************************/
-/* LIGHT CARDS + FIX CHARTS PAGE                   */
-/***************************************************/
-
-/* 1. Make all main cards white with light borders */
-.tickers,
-.tradeArea,
-.historyList,
-.chartsSidebar,
-.chartsMain {
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-}
-
-/* 2. Inner panels/pills also white with borders */
-.tickerItem,
-.tradeFormWrapper,
-.portfolioWrapper,
-.historyInner,
-.chartCard,
-.chartEmpty,
-.chartsSymbolRow {
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-}
-
-/* 3. Hover states for ticker & chart symbol rows */
-.tickerItem:hover,
-.chartsSymbolRow:hover {
-  background: #f3f4f6;
-  border-color: #3b82f6;
-  transform: translateX(0); /* optional: keep them from shifting */
-}
-
-/* 4. Chart area styling (Charts tab) */
-.chartSvg {
-  background: #f9fafb;
-  border-radius: 8px;
-  border: 1px solid #e5e7eb;
-}
-
-/* 5. Make sure text on charts page is black too */
-.chartsSidebar *,
-.chartsMain * {
-  color: #000 !important;
-}
-
-/* 6. Dropdown (CSS Modules–safe, keep this or what you already have) */
-:global(select),
-.dropdown,
-.dropdown * {
-  border: 2px solid #3b82f6 !important;
-  background: #ffffff !important;
-  color: #000 !important;
-}
-
-.portfolioTitle,
-.portfolioSubtitle {
-  color: #ffffff !important;
-}
-
-.tradeArea > * + * {
-  margin-top: 40px; /* adjust as needed */
-}
-}
