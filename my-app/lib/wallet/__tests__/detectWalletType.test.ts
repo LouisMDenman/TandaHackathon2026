@@ -1,5 +1,5 @@
 /**
- * Tests for universal wallet type detection (Bitcoin vs Ethereum)
+ * Tests for universal wallet type detection (Bitcoin, Ethereum, and Solana)
  */
 
 import {
@@ -21,6 +21,13 @@ const ETHEREUM_ADDRESSES = {
   lowercase: '0xd8da6bf26964af9d7eed9e03e53415d37aa96045',
   uppercase: '0xD8DA6BF26964AF9D7EED9E03E53415D37AA96045',
   null: '0x0000000000000000000000000000000000000000',
+};
+
+const SOLANA_ADDRESSES = {
+  systemProgram: '11111111111111111111111111111111',
+  tokenProgram: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
+  random: 'DYw8jCTfwHNRJhhmFcbXvVDTqWMEVFBX6ZKUmG5CNSKK',
+  metaplex: 'metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s',
 };
 
 const INVALID_INPUTS = {
@@ -78,6 +85,33 @@ describe('detectWalletFormat', () => {
     it('should handle Ethereum address with whitespace', () => {
       const type = detectWalletFormat(`  ${ETHEREUM_ADDRESSES.checksummed}  `);
       expect(type).toBe('ethereum');
+    });
+  });
+
+  describe('Solana detection', () => {
+    it('should detect system program address', () => {
+      const type = detectWalletFormat(SOLANA_ADDRESSES.systemProgram);
+      expect(type).toBe('solana');
+    });
+
+    it('should detect token program address', () => {
+      const type = detectWalletFormat(SOLANA_ADDRESSES.tokenProgram);
+      expect(type).toBe('solana');
+    });
+
+    it('should detect random Solana address', () => {
+      const type = detectWalletFormat(SOLANA_ADDRESSES.random);
+      expect(type).toBe('solana');
+    });
+
+    it('should detect metaplex program address', () => {
+      const type = detectWalletFormat(SOLANA_ADDRESSES.metaplex);
+      expect(type).toBe('solana');
+    });
+
+    it('should handle Solana address with whitespace', () => {
+      const type = detectWalletFormat(`  ${SOLANA_ADDRESSES.random}  `);
+      expect(type).toBe('solana');
     });
   });
 
@@ -181,6 +215,47 @@ describe('validateWallet', () => {
     });
   });
 
+  describe('Valid Solana wallets', () => {
+    it('should validate system program address', async () => {
+      const result = await validateWallet(SOLANA_ADDRESSES.systemProgram);
+
+      expect(result.walletType).toBe('solana');
+      expect(result.valid).toBe(true);
+      expect(result.solanaInfo).toBeDefined();
+      expect(result.solanaInfo?.address).toBe(SOLANA_ADDRESSES.systemProgram);
+      expect(result.solanaInfo?.network).toBe('mainnet');
+      expect(result.bitcoinInfo).toBeUndefined();
+      expect(result.ethereumInfo).toBeUndefined();
+      expect(result.error).toBeUndefined();
+    });
+
+    it('should validate token program address', async () => {
+      const result = await validateWallet(SOLANA_ADDRESSES.tokenProgram);
+
+      expect(result.walletType).toBe('solana');
+      expect(result.valid).toBe(true);
+      expect(result.solanaInfo).toBeDefined();
+      expect(result.solanaInfo?.address).toBe(SOLANA_ADDRESSES.tokenProgram);
+      expect(result.error).toBeUndefined();
+    });
+
+    it('should validate random Solana address', async () => {
+      const result = await validateWallet(SOLANA_ADDRESSES.random);
+
+      expect(result.walletType).toBe('solana');
+      expect(result.valid).toBe(true);
+      expect(result.solanaInfo?.address).toBe(SOLANA_ADDRESSES.random);
+    });
+
+    it('should validate metaplex address', async () => {
+      const result = await validateWallet(SOLANA_ADDRESSES.metaplex);
+
+      expect(result.walletType).toBe('solana');
+      expect(result.valid).toBe(true);
+      expect(result.solanaInfo?.address).toBe(SOLANA_ADDRESSES.metaplex);
+    });
+  });
+
   describe('Invalid wallets', () => {
     it('should reject empty string', async () => {
       const result = await validateWallet(INVALID_INPUTS.empty);
@@ -250,6 +325,12 @@ describe('getWalletTypeDescription', () => {
     expect(description).toMatch(/address/i);
   });
 
+  it('should return description for solana', () => {
+    const description = getWalletTypeDescription('solana');
+    expect(description).toContain('Solana');
+    expect(description).toMatch(/address/i);
+  });
+
   it('should return description for unknown', () => {
     const description = getWalletTypeDescription('unknown');
     expect(description).toMatch(/unknown/i);
@@ -269,8 +350,13 @@ describe('getWalletFormatHint', () => {
     expect(hint).toContain('0x');
   });
 
+  it('should return hint for solana', () => {
+    const hint = getWalletFormatHint('solana');
+    expect(hint).toMatch(/32-44|base58/i);
+  });
+
   it('should return general hint for unknown', () => {
     const hint = getWalletFormatHint('unknown');
-    expect(hint).toMatch(/bitcoin|ethereum/i);
+    expect(hint).toMatch(/bitcoin|ethereum|solana/i);
   });
 });

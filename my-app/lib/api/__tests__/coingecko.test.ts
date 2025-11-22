@@ -1,11 +1,13 @@
 /**
- * Tests for CoinGecko API (Ethereum additions)
- * Testing ETH price fetching, conversion, and formatting
+ * Tests for CoinGecko API (Ethereum and Solana additions)
+ * Testing ETH and SOL price fetching, conversion, and formatting
  */
 
 import {
   fetchETHPrice,
+  fetchSOLPrice,
   convertETHToAUD,
+  convertSOLToAUD,
   formatCurrency,
 } from '../coingecko';
 
@@ -240,6 +242,112 @@ describe('convertETHToAUD', () => {
   });
 });
 
+describe('fetchSOLPrice', () => {
+  let consoleWarnSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    (global.fetch as jest.Mock).mockClear();
+    // Advance time by 100 seconds to invalidate any cached data from previous tests
+    mockTime += 100000;
+    Date.now = jest.fn(() => mockTime);
+    // Suppress console.warn during tests that intentionally trigger errors
+    consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+  });
+
+  afterEach(() => {
+    // Restore console.warn after each test
+    consoleWarnSpy.mockRestore();
+  });
+
+  it('should fetch SOL price successfully', async () => {
+    const mockPrice = 245.75;
+
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        solana: {
+          aud: mockPrice,
+        },
+      }),
+    });
+
+    const result = await fetchSOLPrice();
+
+    expect(result.aud).toBe(mockPrice);
+    expect(result.timestamp).toBeDefined();
+    expect(typeof result.timestamp).toBe('number');
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('should make correct API call', async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        solana: { aud: 245 },
+      }),
+    });
+
+    await fetchSOLPrice();
+
+    const fetchCall = (global.fetch as jest.Mock).mock.calls[0];
+    const [url] = fetchCall;
+
+    expect(url).toContain('coingecko.com');
+    expect(url).toContain('solana');
+    expect(url).toContain('vs_currencies=aud');
+  });
+
+  it('should cache price for 60 seconds', async () => {
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        solana: { aud: 245 },
+      }),
+    });
+
+    // First call
+    const firstResult = await fetchSOLPrice();
+
+    // Second call (should use cache)
+    const secondResult = await fetchSOLPrice();
+
+    expect(firstResult.aud).toBe(245);
+    expect(secondResult.aud).toBe(245);
+    expect(firstResult.timestamp).toBe(secondResult.timestamp);
+    expect(global.fetch).toHaveBeenCalledTimes(1); // Only called once due to cache
+  });
+});
+
+describe('convertSOLToAUD', () => {
+  it('should convert 1 SOL to AUD', () => {
+    const price = 245;
+    const result = convertSOLToAUD(1, price);
+
+    expect(result).toBe(245);
+  });
+
+  it('should convert 0 SOL to 0 AUD', () => {
+    const price = 245;
+    const result = convertSOLToAUD(0, price);
+
+    expect(result).toBe(0);
+  });
+
+  it('should convert fractional SOL', () => {
+    const price = 245;
+    const result = convertSOLToAUD(0.5, price);
+
+    expect(result).toBe(122.5);
+  });
+
+  it('should handle large amounts', () => {
+    const price = 245;
+    const result = convertSOLToAUD(100, price);
+
+    expect(result).toBe(24500);
+  });
+});
+
 describe('formatCurrency', () => {
   describe('ETH formatting', () => {
     it('should format 1 ETH correctly', () => {
@@ -333,24 +441,79 @@ describe('formatCurrency', () => {
     });
   });
 
-  describe('Comparison: ETH vs BTC formatting', () => {
-    it('ETH should show 6 decimals, BTC should show 8', () => {
+  describe('SOL formatting', () => {
+    it('should format 1 SOL correctly', () => {
+      const result = formatCurrency(1, 'SOL');
+
+      expect(result).toContain('1');
+      expect(result).toContain('SOL');
+      expect(result).not.toContain('BTC');
+      expect(result).not.toContain('ETH');
+    });
+
+    it('should format fractional SOL', () => {
+      const result = formatCurrency(0.5, 'SOL');
+
+      expect(result).toContain('0.5');
+      expect(result).toContain('SOL');
+    });
+
+    it('should format SOL with 6 decimal places (max)', () => {
+      const result = formatCurrency(1.123456789, 'SOL');
+
+      expect(result).toContain('1.123457'); // Should show 6 decimals (rounded)
+      expect(result).not.toContain('1.1234567'); // Should not show 7+
+      expect(result).toContain('SOL');
+    });
+
+    it('should preserve at least 2 decimal places', () => {
+      const result = formatCurrency(1, 'SOL');
+
+      expect(result).toMatch(/1\.00\s*SOL/);
+    });
+
+    it('should handle zero', () => {
+      const result = formatCurrency(0, 'SOL');
+
+      expect(result).toContain('0');
+      expect(result).toContain('SOL');
+    });
+
+    it('should handle large amounts', () => {
+      const result = formatCurrency(1000.5, 'SOL');
+
+      expect(result).toContain('1000.5');
+      expect(result).toContain('SOL');
+    });
+  });
+
+  describe('Comparison: ETH vs BTC vs SOL formatting', () => {
+    it('ETH and SOL should show 6 decimals, BTC should show 8', () => {
       const eth = formatCurrency(1.123456789, 'ETH');
       const btc = formatCurrency(1.123456789, 'BTC');
+      const sol = formatCurrency(1.123456789, 'SOL');
 
       expect(eth).toContain('1.123457'); // 6 decimals (rounded)
       expect(btc).toContain('1.12345679'); // 8 decimals (rounded)
+      expect(sol).toContain('1.123457'); // 6 decimals (rounded)
     });
 
-    it('should clearly distinguish between ETH and BTC', () => {
+    it('should clearly distinguish between ETH, BTC, and SOL', () => {
       const eth = formatCurrency(1, 'ETH');
       const btc = formatCurrency(1, 'BTC');
+      const sol = formatCurrency(1, 'SOL');
 
       expect(eth).toContain('ETH');
       expect(eth).not.toContain('BTC');
+      expect(eth).not.toContain('SOL');
 
       expect(btc).toContain('BTC');
       expect(btc).not.toContain('ETH');
+      expect(btc).not.toContain('SOL');
+
+      expect(sol).toContain('SOL');
+      expect(sol).not.toContain('ETH');
+      expect(sol).not.toContain('BTC');
     });
   });
 });

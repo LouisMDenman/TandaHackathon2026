@@ -1,6 +1,6 @@
 /**
  * Wallet Balance Checker Page
- * Main page for checking Bitcoin wallet balances
+ * Main page for checking Bitcoin, Ethereum, and Solana wallet balances
  */
 
 'use client';
@@ -12,9 +12,12 @@ import { deriveAddresses } from '@/lib/bitcoin/deriveAddresses';
 import { scanAddressesWithGapLimit } from '@/lib/bitcoin/scanAddresses';
 import { autoDetectAddressFormat } from '@/lib/bitcoin/autoDetectFormat';
 import { calculateTotalBalance } from '@/lib/api/blockstream';
-import { fetchBTCPrice } from '@/lib/api/coingecko';
+import { fetchBTCPrice, fetchETHPrice, fetchSOLPrice } from '@/lib/api/coingecko';
+import { fetchEthBalance } from '@/lib/api/ethereum';
+import { fetchSolBalance } from '@/lib/api/solana';
 import { satoshisToAUD } from '@/lib/utils/format';
 import { NETWORKS } from '@/lib/bitcoin/constants';
+import { validateWallet } from '@/lib/wallet/detectWalletType';
 import WalletInput from '@/components/WalletInput';
 import LoadingState from '@/components/LoadingState';
 import BalanceDisplay from '@/components/BalanceDisplay';
@@ -22,6 +25,7 @@ import ErrorDisplay from '@/components/ErrorDisplay';
 
 type ViewState = 'input' | 'loading' | 'results' | 'error';
 type ErrorType = 'validation' | 'network' | 'api' | 'unknown';
+type CryptoType = 'BTC' | 'ETH' | 'SOL';
 
 export default function WalletPage() {
   // State management
@@ -31,9 +35,11 @@ export default function WalletPage() {
   // Wallet data
   const [extendedKey, setExtendedKey] = useState<string>('');
   const [keyType, setKeyType] = useState<KeyType | null>(null);
+  const [cryptoType, setCryptoType] = useState<CryptoType>('BTC');
 
   // Results
   const [totalSatoshis, setTotalSatoshis] = useState<number>(0);
+  const [totalCrypto, setTotalCrypto] = useState<number>(0);
   const [totalAUD, setTotalAUD] = useState<number>(0);
   const [addressesScanned, setAddressesScanned] = useState<number>(0);
   const [addressesWithErrors, setAddressesWithErrors] = useState<number>(0);
@@ -46,56 +52,34 @@ export default function WalletPage() {
   /**
    * Handle wallet balance check submission
    */
-  const handleSubmit = async (key: string, type: KeyType) => {
-    setExtendedKey(key);
+  const handleSubmit = async (input: string, type: KeyType) => {
+    setExtendedKey(input);
     setKeyType(type);
     setViewState('loading');
     setError('');
 
     try {
-      // Step 1: Validate extended key
-      setLoadingStatus('Validating extended public key...');
-      const validation = detectAndValidateKey(key);
+      // Validate and detect wallet type
+      setLoadingStatus('Detecting wallet type...');
+      const info = await validateWallet(input);
 
-      if (!validation.valid) {
-        throw new Error(validation.error || 'Invalid extended public key');
+      if (!info.valid) {
+        throw new Error(info.error || 'Invalid wallet input');
       }
 
-      // Step 1.5: Auto-detect correct address format
-      setLoadingStatus('Auto-detecting address format (checking Legacy/SegWit/Native SegWit)...');
-
-      const formatDetection = await autoDetectAddressFormat(key, type, NETWORKS.mainnet);
-
-      // Update the key type to the detected format
-      const actualKeyType = formatDetection.detectedFormat;
-      setKeyType(actualKeyType);
-
-      // Step 2: Derive and scan addresses with gap limit
-      setLoadingStatus(`Scanning ${actualKeyType} addresses (${actualKeyType === 'xpub' ? 'Legacy/1...' : actualKeyType === 'ypub' ? 'SegWit/3...' : 'Native SegWit/bc1...'})...`);
-
-      // Use gap limit scanning to find all used addresses with the correct format
-      // This will scan until finding 20 consecutive unused addresses
-      const addresses = await scanAddressesWithGapLimit(key, actualKeyType, NETWORKS.mainnet);
-      setAddressesScanned(addresses.length);
-
-      // Extract just the address strings for balance checking
-      const addressList = addresses.map(addr => addr.address);
-
-      // Step 3: Fetch balances
-      setLoadingStatus('Checking balances...');
-      const balanceResult = await calculateTotalBalance(addressList);
-      setTotalSatoshis(balanceResult.totalBalance);
-      setAddressesWithErrors(balanceResult.addressesWithErrors);
-
-      // Step 4: Fetch price
-      setLoadingStatus('Fetching price...');
-      const priceData = await fetchBTCPrice();
-      const audValue = satoshisToAUD(balanceResult.totalBalance, priceData.aud);
-      setTotalAUD(audValue);
-
-      // Success! Show results
-      setTimestamp(Date.now());
-      setViewState('results');
+      // Route to appropriate handler based on wallet type
+      if (info.walletType === 'bitcoin' && info.bitcoinInfo) {
+        // Bitcoin flow
+        await handleBitcoinCheck(input, info.bitcoinInfo.type);
+      } else if (info.walletType === 'ethereum' && info.ethereumInfo) {
+        // Ethereum flow
+        await handleEthereumCheck(info.ethereumInfo.address);
+      } else if (info.walletType === 'solana' && info.solanaInfo) {
+        // Solana flow
+        await handleSolanaCheck(info.solanaInfo.address);
+      } else {
+        throw new Error('Invalid wallet type');
+      }
 
     } catch (err) {
       console.error('Error checking wallet balance:', err);
@@ -120,6 +104,112 @@ export default function WalletPage() {
       setErrorType(errType);
       setViewState('error');
     }
+  };
+
+  /**
+   * Handle Bitcoin wallet check
+   */
+  const handleBitcoinCheck = async (key: string, type: KeyType) => {
+    setCryptoType('BTC');
+
+    // Step 1: Validate extended key
+    setLoadingStatus('Validating Bitcoin extended public key...');
+    const validation = detectAndValidateKey(key);
+
+    if (!validation.valid) {
+      throw new Error(validation.error || 'Invalid extended public key');
+    }
+
+    // Step 2: Auto-detect correct address format
+    setLoadingStatus('Auto-detecting address format (checking Legacy/SegWit/Native SegWit)...');
+    const formatDetection = await autoDetectAddressFormat(key, type, NETWORKS.mainnet);
+    const actualKeyType = formatDetection.detectedFormat;
+
+    // Step 3: Derive and scan addresses with gap limit
+    setLoadingStatus(`Scanning ${actualKeyType} addresses (${actualKeyType === 'xpub' ? 'Legacy/1...' : actualKeyType === 'ypub' ? 'SegWit/3...' : 'Native SegWit/bc1...'})...`);
+    const addresses = await scanAddressesWithGapLimit(key, actualKeyType, NETWORKS.mainnet);
+    setAddressesScanned(addresses.length);
+
+    // Extract address strings for balance checking
+    const addressList = addresses.map(addr => addr.address);
+
+    // Step 4: Fetch balances
+    setLoadingStatus('Checking Bitcoin balances...');
+    const balanceResult = await calculateTotalBalance(addressList);
+    setAddressesWithErrors(balanceResult.addressesWithErrors);
+
+    // Step 5: Fetch BTC price
+    setLoadingStatus('Fetching BTC price...');
+    const priceData = await fetchBTCPrice();
+
+    // Convert satoshis to BTC
+    const btcAmount = balanceResult.totalBalance / 100000000;
+    setTotalCrypto(btcAmount);
+
+    const audValue = satoshisToAUD(balanceResult.totalBalance, priceData.aud);
+    setTotalAUD(audValue);
+
+    // Success! Show results
+    setTimestamp(Date.now());
+    setViewState('results');
+  };
+
+  /**
+   * Handle Ethereum wallet check
+   */
+  const handleEthereumCheck = async (address: string) => {
+    setCryptoType('ETH');
+
+    // Step 1: Fetch ETH balance
+    setLoadingStatus('Checking Ethereum balance...');
+    const balanceResult = await fetchEthBalance(address);
+
+    if (balanceResult.status === 'error') {
+      throw new Error(balanceResult.error || 'Failed to fetch Ethereum balance');
+    }
+
+    setTotalCrypto(balanceResult.balanceInEth);
+    setAddressesScanned(1); // Single address
+    setAddressesWithErrors(0);
+
+    // Step 2: Fetch ETH price
+    setLoadingStatus('Fetching ETH price...');
+    const priceData = await fetchETHPrice();
+    const audValue = balanceResult.balanceInEth * priceData.aud;
+    setTotalAUD(audValue);
+
+    // Success! Show results
+    setTimestamp(Date.now());
+    setViewState('results');
+  };
+
+  /**
+   * Handle Solana wallet check
+   */
+  const handleSolanaCheck = async (address: string) => {
+    setCryptoType('SOL');
+
+    // Step 1: Fetch SOL balance
+    setLoadingStatus('Checking Solana balance...');
+    const balanceResult = await fetchSolBalance(address);
+
+    if (balanceResult.status === 'error') {
+      throw new Error(balanceResult.error || 'Failed to fetch Solana balance');
+    }
+
+    setTotalCrypto(balanceResult.balanceInSol);
+    setAddressesScanned(1); // Single address
+    setAddressesWithErrors(0);
+
+    // Step 2: Fetch SOL price
+    setLoadingStatus('Fetching SOL price...');
+    const priceData = await fetchSOLPrice();
+    const audValue = balanceResult.balanceInSol * priceData.aud;
+    setTotalAUD(audValue);
+
+    // Success! Show results
+    setTimestamp(Date.now());
+    setViewState('results');
   };
 
   /**
@@ -196,7 +286,8 @@ export default function WalletPage() {
             {viewState === 'results' && (
               <div className="fade-in">
                 <BalanceDisplay
-                  totalSatoshis={totalSatoshis}
+                  cryptoType={cryptoType}
+                  totalCrypto={totalCrypto}
                   totalAUD={totalAUD}
                   addressesScanned={addressesScanned}
                   addressesWithErrors={addressesWithErrors}
@@ -331,6 +422,33 @@ export default function WalletPage() {
                   Your total balance is displayed in both BTC and AUD,
                   with the current exchange rate from CoinGecko.
                 </p>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <h4 className="font-medium text-gray-900 mb-2">For Solana:</h4>
+            <div className="space-y-3">
+              <div className="flex items-start space-x-3">
+                <div className="flex-shrink-0 w-8 h-8 bg-green-100 rounded-full flex items-center justify-center text-green-600 font-semibold text-sm">
+                  1
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">
+                    Enter your Solana address (base58-encoded). The app validates the address format.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start space-x-3">
+                <div className="flex-shrink-0 w-8 h-8 bg-green-100 rounded-full flex items-center justify-center text-green-600 font-semibold text-sm">
+                  2
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">
+                    Fetches balance via Solana JSON-RPC and displays in SOL and AUD.
+                  </p>
+                </div>
               </div>
             </div>
           </div>

@@ -119,18 +119,6 @@ export async function GET(req: NextRequest) {
       )
     }
 
-    const { searchParams } = new URL(req.url)
-    const symbolsParam = searchParams.get("symbols") // e.g. "AAPL,MSFT,BHP.AX"
-    const rangeParam = searchParams.get("range") || "1W" // e.g. "1D", "1W", "1M", "ALL"
-    if (!symbolsParam) {
-      return NextResponse.json({ prices: {} })
-    }
-
-    const symbols = symbolsParam
-      .split(",")
-      .map(s => s.trim())
-      .filter(Boolean)
-
     // Helper to get Finnhub candle resolution and time window
     function getCandleParams(range: string) {
       const now = Math.floor(Date.now() / 1000)
