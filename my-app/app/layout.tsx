@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import { ClerkProvider } from '@clerk/nextjs';
 import "./globals.css";
 import Navigation from "@/components/Navigation";
+import CryptoAssistant from "@/components/CryptoAssistant";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -26,6 +27,7 @@ export default function RootLayout({
         <body className="antialiased" style={{ fontFamily: 'var(--font-inter), Inter, sans-serif' }}>
           <Navigation />
           {children}
+          <CryptoAssistant />
         </body>
       </html>
     </ClerkProvider>
