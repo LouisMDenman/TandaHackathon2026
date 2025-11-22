@@ -90,6 +90,8 @@ export default function PlaygroundPage() {
   const [history, setHistory] = useState<any[]>([])
   const [isHydrated, setIsHydrated] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [showConfetti, setShowConfetti] = useState(false)
+  const [showSuccessPopup, setShowSuccessPopup] = useState(false)
 
   // Load portfolio from database
   useEffect(() => {
@@ -220,6 +222,14 @@ export default function PlaygroundPage() {
         { time: new Date().toISOString(), symbol, side, qty, price },
         ...prev,
       ])
+      
+      // Trigger confetti animation and success popup on successful buy
+      setShowConfetti(true)
+      setShowSuccessPopup(true)
+      setTimeout(() => {
+        setShowConfetti(false)
+        setShowSuccessPopup(false)
+      }, 3000)
     } else {
       const prevHold = holdings[symbol] || { qty: 0, avg: 0 }
       if (qty > prevHold.qty) {
@@ -324,6 +334,29 @@ export default function PlaygroundPage() {
   // Main playground UI (authenticated users only)
   return (
     <div className={styles.root} style={{ position: 'relative' }}>
+      {/* Success Popup */}
+      {showSuccessPopup && (
+        <div style={{
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          zIndex: 100000,
+          background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+          color: 'white',
+          padding: '32px 48px',
+          borderRadius: '24px',
+          boxShadow: '0 20px 80px rgba(16, 185, 129, 0.6), 0 0 0 2px rgba(255,255,255,0.5) inset',
+          animation: 'popup-bounce 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55)',
+          textAlign: 'center',
+          minWidth: '300px'
+        }}>
+          <div style={{ fontSize: '48px', marginBottom: '12px' }}>🎉</div>
+          <div style={{ fontSize: '24px', fontWeight: 800, marginBottom: '8px' }}>Trade Executed!</div>
+          <div style={{ fontSize: '16px', fontWeight: 600, opacity: 0.9 }}>Your purchase was successful</div>
+        </div>
+      )}
+      
       {/* Animated background gradients */}
       <div style={{
         position: 'fixed',
@@ -380,8 +413,8 @@ export default function PlaygroundPage() {
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
-          <div className={styles.balance}>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div className={styles.balance} style={{ position: 'relative' }}>
             <span className={styles.balanceLabel}>Play money balance</span>
             <div className={styles.balanceValue}>
               {balance == null
@@ -391,6 +424,38 @@ export default function PlaygroundPage() {
                     currency: "USD",
                   })}
             </div>
+            
+            {/* Confetti Animation */}
+            {showConfetti && (
+              <div style={{
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                width: '300px',
+                height: '300px',
+                transform: 'translate(-50%, -50%)',
+                pointerEvents: 'none',
+                zIndex: 10000
+              }}>
+                {[...Array(50)].map((_, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      position: 'absolute',
+                      width: i % 2 === 0 ? '12px' : '8px',
+                      height: i % 2 === 0 ? '12px' : '8px',
+                      background: ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'][i % 6],
+                      left: '50%',
+                      top: '50%',
+                      borderRadius: i % 3 === 0 ? '50%' : '2px',
+                      animation: `confetti-${i % 6} 2.5s ease-out forwards`,
+                      opacity: 1,
+                      boxShadow: '0 0 8px rgba(0,0,0,0.3)'
+                    }}
+                  />
+                ))}
+              </div>
+            )}
           </div>
           
           <div style={{ position: 'relative', zIndex: 1 }}>
