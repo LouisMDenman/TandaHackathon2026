@@ -1,6 +1,6 @@
 "use client"
 import React, { useEffect, useMemo, useState } from "react"
-import { useUser, UserButton } from "@clerk/nextjs"
+import { useUser, UserButton, SignInButton, SignUpButton } from "@clerk/nextjs"
 import usePriceFeed from "./usePriceFeed"
 import TickerCard from "./components/TickerCard"
 import TradeForm from "./components/TradeForm"
@@ -21,6 +21,84 @@ type PricePoint = { t: number; p: number }
 
 export default function PlaygroundPage() {
   const { user, isLoaded } = useUser()
+  
+  // Show loading state while checking authentication
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-cyan-400 mx-auto mb-4"></div>
+          <p className="text-white text-xl">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+  
+  // Show sign-in page if user is not authenticated
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden">
+        {/* Animated background orbs */}
+        <div className="absolute top-20 left-20 w-96 h-96 bg-purple-500 rounded-full filter blur-3xl opacity-30 animate-float" 
+             style={{
+               boxShadow: '0 0 100px 50px rgba(139, 92, 246, 0.3)'
+             }}></div>
+        <div className="absolute bottom-20 right-20 w-96 h-96 bg-cyan-500 rounded-full filter blur-3xl opacity-30 animate-float" 
+             style={{
+               boxShadow: '0 0 100px 50px rgba(6, 182, 212, 0.3)',
+               animationDelay: '2s'
+             }}></div>
+        
+        <div className="relative z-10 max-w-md w-full mx-4 p-8 bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 shadow-2xl">
+          <div className="text-center mb-8">
+            <div className="text-6xl mb-4">🎮</div>
+            <h1 className="text-4xl font-black text-white mb-4">
+              Join the Trading Playground
+            </h1>
+            <p className="text-slate-300 text-lg">
+              Sign in to start practicing with <span className="text-cyan-400 font-bold">$100,000</span> in play money
+            </p>
+          </div>
+          
+          <div className="space-y-4">
+            <SignUpButton mode="modal">
+              <button className="w-full px-8 py-4 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-lg font-bold shadow-lg hover:shadow-cyan-500/50 transition-all duration-300 hover:scale-105">
+                Sign Up - It's Free
+              </button>
+            </SignUpButton>
+            
+            <SignInButton mode="modal">
+              <button className="w-full px-8 py-4 rounded-xl bg-white/10 backdrop-blur-md border-2 border-white/20 text-white text-lg font-bold hover:bg-white/20 transition-all duration-300">
+                Already have an account? Sign In
+              </button>
+            </SignInButton>
+          </div>
+          
+          <div className="mt-8 pt-6 border-t border-white/10">
+            <h3 className="text-white font-semibold mb-3 text-center">What you'll get:</h3>
+            <ul className="space-y-2 text-slate-300">
+              <li className="flex items-start">
+                <span className="text-green-400 mr-2">✓</span>
+                <span>$100,000 starting balance in play money</span>
+              </li>
+              <li className="flex items-start">
+                <span className="text-green-400 mr-2">✓</span>
+                <span>Real-time market prices from live exchanges</span>
+              </li>
+              <li className="flex items-start">
+                <span className="text-green-400 mr-2">✓</span>
+                <span>Track your portfolio and trading history</span>
+              </li>
+              <li className="flex items-start">
+                <span className="text-green-400 mr-2">✓</span>
+                <span>Practice risk-free with virtual money</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    )
+  }
   
   // markets you track
   const [symbols, setSymbols] = useState<SymbolConfig[]>([
@@ -95,7 +173,20 @@ export default function PlaygroundPage() {
     async function loadPortfolio() {
       try {
         const response = await fetch('/api/portfolio')
-        if (!response.ok) throw new Error('Failed to load portfolio')
+        
+        // Check if response is ok
+        if (!response.ok) {
+          // If it's a 401 or 404, use defaults (new user)
+          if (response.status === 401 || response.status === 404) {
+            console.log('New user or no portfolio found, using defaults')
+            setBalance(100000)
+            setHoldings({})
+            setHistory([])
+            setIsHydrated(true)
+            return
+          }
+          throw new Error(`Failed to load portfolio: ${response.status}`)
+        }
         
         const data = await response.json()
         setBalance(data.balance || 100000)
@@ -104,7 +195,7 @@ export default function PlaygroundPage() {
         setIsHydrated(true)
       } catch (error) {
         console.error('Error loading portfolio:', error)
-        // Set defaults if loading fails
+        // Set defaults if loading fails - don't block the user
         setBalance(100000)
         setHoldings({})
         setHistory([])
