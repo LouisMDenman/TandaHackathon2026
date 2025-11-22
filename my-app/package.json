@@ -18,10 +18,13 @@
     "bitcoinjs-lib": "^7.0.0",
     "bs58": "^5.0.0",
     "bs58check": "^4.0.0",
+    "chart.js": "^4.5.1",
     "js-sha3": "^0.9.3",
     "next": "16.0.3",
     "react": "19.2.0",
+    "react-chartjs-2": "^5.3.1",
     "react-dom": "19.2.0",
+    "svix": "^1.81.0",
     "tiny-secp256k1": "^2.2.4"
   },
   "devDependencies": {

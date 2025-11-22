@@ -17,6 +17,7 @@ import { fetchEthBalance } from '@/lib/api/ethereum';
 import { fetchSolBalance } from '@/lib/api/solana';
 import { satoshisToAUD } from '@/lib/utils/format';
 import { NETWORKS } from '@/lib/bitcoin/constants';
+import { validateWallet } from '@/lib/wallet/detectWalletType';
 import WalletInput from '@/components/WalletInput';
 import LoadingState from '@/components/LoadingState';
 import BalanceDisplay from '@/components/BalanceDisplay';
@@ -34,9 +35,11 @@ export default function WalletPage() {
   // Wallet data
   const [extendedKey, setExtendedKey] = useState<string>('');
   const [keyType, setKeyType] = useState<KeyType | null>(null);
+  const [cryptoType, setCryptoType] = useState<CryptoType>('BTC');
 
   // Results
   const [totalSatoshis, setTotalSatoshis] = useState<number>(0);
+  const [totalCrypto, setTotalCrypto] = useState<number>(0);
   const [totalAUD, setTotalAUD] = useState<number>(0);
   const [addressesScanned, setAddressesScanned] = useState<number>(0);
   const [addressesWithErrors, setAddressesWithErrors] = useState<number>(0);
@@ -49,13 +52,22 @@ export default function WalletPage() {
   /**
    * Handle wallet balance check submission
    */
-  const handleSubmit = async (key: string, type: KeyType) => {
-    setExtendedKey(key);
+  const handleSubmit = async (input: string, type: KeyType) => {
+    setExtendedKey(input);
     setKeyType(type);
     setViewState('loading');
     setError('');
 
     try {
+      // Validate and detect wallet type
+      setLoadingStatus('Detecting wallet type...');
+      const info = await validateWallet(input);
+
+      if (!info.valid) {
+        throw new Error(info.error || 'Invalid wallet input');
+      }
+
+      // Route to appropriate handler based on wallet type
       if (info.walletType === 'bitcoin' && info.bitcoinInfo) {
         // Bitcoin flow
         await handleBitcoinCheck(input, info.bitcoinInfo.type);
@@ -68,42 +80,6 @@ export default function WalletPage() {
       } else {
         throw new Error('Invalid wallet type');
       }
-
-      // Step 1.5: Auto-detect correct address format
-      setLoadingStatus('Auto-detecting address format (checking Legacy/SegWit/Native SegWit)...');
-
-      const formatDetection = await autoDetectAddressFormat(key, type, NETWORKS.mainnet);
-
-      // Update the key type to the detected format
-      const actualKeyType = formatDetection.detectedFormat;
-      setKeyType(actualKeyType);
-
-      // Step 2: Derive and scan addresses with gap limit
-      setLoadingStatus(`Scanning ${actualKeyType} addresses (${actualKeyType === 'xpub' ? 'Legacy/1...' : actualKeyType === 'ypub' ? 'SegWit/3...' : 'Native SegWit/bc1...'})...`);
-
-      // Use gap limit scanning to find all used addresses with the correct format
-      // This will scan until finding 20 consecutive unused addresses
-      const addresses = await scanAddressesWithGapLimit(key, actualKeyType, NETWORKS.mainnet);
-      setAddressesScanned(addresses.length);
-
-      // Extract just the address strings for balance checking
-      const addressList = addresses.map(addr => addr.address);
-
-      // Step 3: Fetch balances
-      setLoadingStatus('Checking balances...');
-      const balanceResult = await calculateTotalBalance(addressList);
-      setTotalSatoshis(balanceResult.totalBalance);
-      setAddressesWithErrors(balanceResult.addressesWithErrors);
-
-      // Step 4: Fetch price
-      setLoadingStatus('Fetching price...');
-      const priceData = await fetchBTCPrice();
-      const audValue = satoshisToAUD(balanceResult.totalBalance, priceData.aud);
-      setTotalAUD(audValue);
-
-      // Success! Show results
-      setTimestamp(Date.now());
-      setViewState('results');
 
     } catch (err) {
       console.error('Error checking wallet balance:', err);
@@ -310,7 +286,8 @@ export default function WalletPage() {
             {viewState === 'results' && (
               <div className="fade-in">
                 <BalanceDisplay
-                  totalSatoshis={totalSatoshis}
+                  cryptoType={cryptoType}
+                  totalCrypto={totalCrypto}
                   totalAUD={totalAUD}
                   addressesScanned={addressesScanned}
                   addressesWithErrors={addressesWithErrors}

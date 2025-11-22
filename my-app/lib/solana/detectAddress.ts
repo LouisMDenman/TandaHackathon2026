@@ -63,7 +63,7 @@ export async function detectAndValidateAddress(
   // Additional validation using bs58 library for proper decoding
   try {
     const bs58 = await import('bs58');
-    const decoded = bs58.default.decode(trimmedInput);
+    const decoded = bs58.decode(trimmedInput);
 
     // Solana public keys should decode to exactly 32 bytes
     if (decoded.length !== 32) {
