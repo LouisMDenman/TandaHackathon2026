@@ -95,21 +95,42 @@ export async function POST(request: NextRequest) {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Gemini API error:', errorText);
+      console.error('Gemini API error:', response.status, errorText);
       return NextResponse.json(
-        { error: 'Failed to get response from AI' },
+        { 
+          error: 'Failed to get response from AI',
+          details: `API returned status ${response.status}`,
+          message: errorText
+        },
         { status: 500 }
       );
     }
 
     const data = await response.json();
-    const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || 'Sorry, I could not generate a response.';
+    
+    // Check if we got a valid response
+    if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+      console.error('Invalid Gemini response structure:', JSON.stringify(data));
+      return NextResponse.json(
+        { 
+          error: 'Invalid response from AI',
+          details: 'Response structure was unexpected'
+        },
+        { status: 500 }
+      );
+    }
+
+    const reply = data.candidates[0].content.parts[0].text || 'Sorry, I could not generate a response.';
 
     return NextResponse.json({ reply });
   } catch (error) {
     console.error('Chat API error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { 
+        error: 'Internal server error',
+        details: errorMessage
+      },
       { status: 500 }
     );
   }
