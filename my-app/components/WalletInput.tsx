@@ -73,7 +73,7 @@ export default function WalletInput({ onSubmit, disabled = false }: WalletInputP
             placeholder="Enter your xpub, ypub, or zpub..."
             disabled={disabled}
             rows={3}
-            className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 font-mono text-sm resize-none ${
+            className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 font-mono text-sm resize-none text-gray-700 placeholder:text-gray-400 ${
               extendedKey && isValid
                 ? 'border-green-500 focus:ring-green-500'
                 : extendedKey && validationError
