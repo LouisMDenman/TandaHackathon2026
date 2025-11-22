@@ -1,5 +1,5 @@
 /**
- * Tests for universal wallet type detection (Bitcoin, Ethereum, and Solana)
+ * Tests for universal wallet type detection (Bitcoin, Ethereum, Solana, and XRP)
  */
 
 import {
@@ -28,6 +28,12 @@ const SOLANA_ADDRESSES = {
   tokenProgram: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
   random: 'DYw8jCTfwHNRJhhmFcbXvVDTqWMEVFBX6ZKUmG5CNSKK',
   metaplex: 'metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s',
+};
+
+const XRP_ADDRESSES = {
+  classic: 'rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh',
+  bitstamp: 'rvYAfWj5gh67oV6fW32ZzP3Aw4Eubs59B',
+  withTag: 'rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh:12345',
 };
 
 const INVALID_INPUTS = {
@@ -112,6 +118,28 @@ describe('detectWalletFormat', () => {
     it('should handle Solana address with whitespace', () => {
       const type = detectWalletFormat(`  ${SOLANA_ADDRESSES.random}  `);
       expect(type).toBe('solana');
+    });
+  });
+
+  describe('XRP detection', () => {
+    it('should detect classic XRP address', () => {
+      const type = detectWalletFormat(XRP_ADDRESSES.classic);
+      expect(type).toBe('xrp');
+    });
+
+    it('should detect Bitstamp XRP address', () => {
+      const type = detectWalletFormat(XRP_ADDRESSES.bitstamp);
+      expect(type).toBe('xrp');
+    });
+
+    it('should detect XRP address with destination tag', () => {
+      const type = detectWalletFormat(XRP_ADDRESSES.withTag);
+      expect(type).toBe('xrp');
+    });
+
+    it('should handle XRP address with whitespace', () => {
+      const type = detectWalletFormat(`  ${XRP_ADDRESSES.classic}  `);
+      expect(type).toBe('xrp');
     });
   });
 
@@ -256,6 +284,44 @@ describe('validateWallet', () => {
     });
   });
 
+  describe('Valid XRP wallets', () => {
+    it('should validate classic XRP address', async () => {
+      const result = await validateWallet(XRP_ADDRESSES.classic);
+
+      expect(result.walletType).toBe('xrp');
+      expect(result.valid).toBe(true);
+      expect(result.xrpInfo).toBeDefined();
+      expect(result.xrpInfo?.address).toBe(XRP_ADDRESSES.classic);
+      expect(result.xrpInfo?.addressType).toBe('classic');
+      expect(result.xrpInfo?.network).toBe('mainnet');
+      expect(result.bitcoinInfo).toBeUndefined();
+      expect(result.ethereumInfo).toBeUndefined();
+      expect(result.solanaInfo).toBeUndefined();
+      expect(result.error).toBeUndefined();
+    });
+
+    it('should validate Bitstamp XRP address', async () => {
+      const result = await validateWallet(XRP_ADDRESSES.bitstamp);
+
+      expect(result.walletType).toBe('xrp');
+      expect(result.valid).toBe(true);
+      expect(result.xrpInfo).toBeDefined();
+      expect(result.xrpInfo?.address).toBe(XRP_ADDRESSES.bitstamp);
+      expect(result.error).toBeUndefined();
+    });
+
+    it('should validate XRP address with destination tag', async () => {
+      const result = await validateWallet(XRP_ADDRESSES.withTag);
+
+      expect(result.walletType).toBe('xrp');
+      expect(result.valid).toBe(true);
+      expect(result.xrpInfo).toBeDefined();
+      expect(result.xrpInfo?.address).toBe(XRP_ADDRESSES.classic);
+      expect(result.xrpInfo?.destinationTag).toBe(12345);
+      expect(result.error).toBeUndefined();
+    });
+  });
+
   describe('Invalid wallets', () => {
     it('should reject empty string', async () => {
       const result = await validateWallet(INVALID_INPUTS.empty);
@@ -331,6 +397,12 @@ describe('getWalletTypeDescription', () => {
     expect(description).toMatch(/address/i);
   });
 
+  it('should return description for xrp', () => {
+    const description = getWalletTypeDescription('xrp');
+    expect(description).toContain('XRP');
+    expect(description).toMatch(/address/i);
+  });
+
   it('should return description for unknown', () => {
     const description = getWalletTypeDescription('unknown');
     expect(description).toMatch(/unknown/i);
@@ -355,8 +427,14 @@ describe('getWalletFormatHint', () => {
     expect(hint).toMatch(/32-44|base58/i);
   });
 
+  it('should return hint for xrp', () => {
+    const hint = getWalletFormatHint('xrp');
+    expect(hint).toMatch(/r|X/);
+    expect(hint).toMatch(/classic|X-address|destination tag/i);
+  });
+
   it('should return general hint for unknown', () => {
     const hint = getWalletFormatHint('unknown');
-    expect(hint).toMatch(/bitcoin|ethereum|solana/i);
+    expect(hint).toMatch(/bitcoin|ethereum|solana|xrp/i);
   });
 });

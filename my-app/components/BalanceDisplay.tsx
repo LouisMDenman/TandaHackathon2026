@@ -1,6 +1,6 @@
 /**
  * BalanceDisplay Component
- * Displays crypto wallet balance results (Bitcoin, Ethereum, or Solana)
+ * Displays crypto wallet balance results (Bitcoin, Ethereum, Solana, or XRP)
  */
 
 'use client';
@@ -8,11 +8,11 @@
 import { formatAUD, formatTimestamp } from '@/lib/utils/format';
 import { formatCurrency } from '@/lib/api/coingecko';
 
-type CryptoType = 'BTC' | 'ETH' | 'SOL';
+type CryptoType = 'BTC' | 'ETH' | 'SOL' | 'XRP';
 
 interface BalanceDisplayProps {
   cryptoType: CryptoType;
-  totalCrypto: number; // Amount in BTC, ETH, or SOL
+  totalCrypto: number; // Amount in BTC, ETH, SOL, or XRP
   totalAUD: number;
   addressesScanned: number;
   addressesWithErrors: number;
@@ -32,7 +32,7 @@ export default function BalanceDisplay({
   const cryptoAmount = formatCurrency(totalCrypto, cryptoType);
   const audAmount = formatAUD(totalAUD);
   const isBitcoin = cryptoType === 'BTC';
-  const cryptoName = cryptoType === 'BTC' ? 'Bitcoin' : cryptoType === 'ETH' ? 'Ethereum' : 'Solana';
+  const cryptoName = cryptoType === 'BTC' ? 'Bitcoin' : cryptoType === 'ETH' ? 'Ethereum' : cryptoType === 'SOL' ? 'Solana' : 'XRP';
 
   return (
     <div className="w-full max-w-2xl mx-auto">
