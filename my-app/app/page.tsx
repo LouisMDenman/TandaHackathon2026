@@ -32,19 +32,27 @@ export default function Home() {
         
         {/* Particle effect overlay */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          {[...Array(20)].map((_, i) => (
-            <div
-              key={i}
-              className="absolute w-1 h-1 bg-white rounded-full"
-              style={{
-                left: `${Math.random() * 100}%`,
-                top: `${Math.random() * 100}%`,
-                animation: `particle-float ${3 + Math.random() * 4}s ease-in-out infinite`,
-                animationDelay: `${Math.random() * 5}s`,
-                opacity: 0.6
-              }}
-            />
-          ))}
+          {[...Array(20)].map((_, i) => {
+            // Use index-based deterministic values instead of Math.random()
+            const left = (i * 17 + 13) % 100;
+            const top = (i * 23 + 7) % 100;
+            const duration = 3 + (i % 4);
+            const delay = (i * 0.3) % 5;
+            
+            return (
+              <div
+                key={i}
+                className="absolute w-1 h-1 bg-white rounded-full"
+                style={{
+                  left: `${left}%`,
+                  top: `${top}%`,
+                  animation: `particle-float ${duration}s ease-in-out infinite`,
+                  animationDelay: `${delay}s`,
+                  opacity: 0.6
+                }}
+              />
+            );
+          })}
         </div>
         
         <main className="relative z-10 flex min-h-screen w-full max-w-6xl flex-col items-center justify-center py-20 px-8 text-center">
