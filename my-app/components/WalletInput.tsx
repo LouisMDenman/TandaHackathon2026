@@ -1,60 +1,75 @@
 /**
  * WalletInput Component
- * Input form for extended public key (xpub/ypub/zpub)
+ * Input form for crypto wallet (Bitcoin xpub/ypub/zpub or Ethereum address)
  */
 
 'use client';
 
 import { useState, useEffect } from 'react';
-import { KeyType } from '@/lib/bitcoin/types';
-import { detectAndValidateKey, getKeyTypeDescription } from '@/lib/bitcoin/detectKeyType';
+import type { WalletInfo } from '@/lib/wallet/detectWalletType';
+import { validateWallet, getWalletTypeDescription } from '@/lib/wallet/detectWalletType';
 
 interface WalletInputProps {
-  onSubmit: (extendedKey: string, keyType: KeyType) => void;
+  onSubmit: (walletInput: string, walletInfo: WalletInfo) => void;
   disabled?: boolean;
 }
 
 export default function WalletInput({ onSubmit, disabled = false }: WalletInputProps) {
-  const [extendedKey, setExtendedKey] = useState('');
-  const [detectedKeyType, setDetectedKeyType] = useState<KeyType | null>(null);
+  const [walletInput, setWalletInput] = useState('');
+  const [walletInfo, setWalletInfo] = useState<WalletInfo | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [isValid, setIsValid] = useState(false);
+  const [isValidating, setIsValidating] = useState(false);
 
-  // Validate extended key as user types
+  // Validate wallet input as user types (async for Ethereum checksum validation)
   useEffect(() => {
-    if (!extendedKey.trim()) {
-      setDetectedKeyType(null);
+    if (!walletInput.trim()) {
+      setWalletInfo(null);
       setValidationError(null);
       setIsValid(false);
       return;
     }
 
-    const result = detectAndValidateKey(extendedKey.trim());
+    // Debounce validation to avoid excessive calls
+    const timeoutId = setTimeout(async () => {
+      setIsValidating(true);
+      try {
+        const result = await validateWallet(walletInput.trim());
 
-    if (result.valid) {
-      setDetectedKeyType(result.type);
-      setValidationError(null);
-      setIsValid(true);
-    } else {
-      setDetectedKeyType(null);
-      setValidationError(result.error || 'Invalid extended public key');
-      setIsValid(false);
-    }
-  }, [extendedKey]);
+        if (result.valid) {
+          setWalletInfo(result);
+          setValidationError(null);
+          setIsValid(true);
+        } else {
+          setWalletInfo(result);
+          setValidationError(result.error || 'Invalid wallet format');
+          setIsValid(false);
+        }
+      } catch (error) {
+        setWalletInfo(null);
+        setValidationError('Error validating wallet');
+        setIsValid(false);
+      } finally {
+        setIsValidating(false);
+      }
+    }, 300); // 300ms debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [walletInput]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!isValid || !detectedKeyType) {
+    if (!isValid || !walletInfo) {
       return;
     }
 
-    onSubmit(extendedKey.trim(), detectedKeyType);
+    onSubmit(walletInput.trim(), walletInfo);
   };
 
   const handleClear = () => {
-    setExtendedKey('');
-    setDetectedKeyType(null);
+    setWalletInput('');
+    setWalletInfo(null);
     setValidationError(null);
     setIsValid(false);
   };
@@ -62,26 +77,26 @@ export default function WalletInput({ onSubmit, disabled = false }: WalletInputP
   return (
     <form onSubmit={handleSubmit} className="w-full max-w-2xl mx-auto space-y-4">
       <div>
-        <label htmlFor="xpub-input" className="block text-sm font-medium text-gray-700 mb-2">
-          Extended Public Key
+        <label htmlFor="wallet-input" className="block text-sm font-medium text-gray-700 mb-2">
+          Wallet Address or Public Key
         </label>
         <div className="relative">
           <textarea
-            id="xpub-input"
-            value={extendedKey}
-            onChange={(e) => setExtendedKey(e.target.value)}
-            placeholder="Enter your xpub, ypub, or zpub..."
+            id="wallet-input"
+            value={walletInput}
+            onChange={(e) => setWalletInput(e.target.value)}
+            placeholder="Enter Bitcoin xpub/ypub/zpub or Ethereum address (0x...)..."
             disabled={disabled}
             rows={3}
             className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 font-mono text-sm resize-none text-gray-700 placeholder:text-gray-400 ${
-              extendedKey && isValid
+              walletInput && isValid
                 ? 'border-green-500 focus:ring-green-500'
-                : extendedKey && validationError
+                : walletInput && validationError
                 ? 'border-red-500 focus:ring-red-500'
                 : 'border-gray-300 focus:ring-blue-500'
             } ${disabled ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}`}
           />
-          {extendedKey && !disabled && (
+          {walletInput && !disabled && (
             <button
               type="button"
               onClick={handleClear}
@@ -106,9 +121,32 @@ export default function WalletInput({ onSubmit, disabled = false }: WalletInputP
         </div>
 
         {/* Validation feedback */}
-        {extendedKey && (
+        {walletInput && (
           <div className="mt-2">
-            {isValid && detectedKeyType ? (
+            {isValidating ? (
+              <div className="flex items-start space-x-2 text-sm text-gray-500">
+                <svg
+                  className="w-5 h-5 flex-shrink-0 mt-0.5 animate-spin"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  />
+                </svg>
+                <p>Validating...</p>
+              </div>
+            ) : isValid && walletInfo ? (
               <div className="flex items-start space-x-2 text-sm text-green-600">
                 <svg
                   className="w-5 h-5 flex-shrink-0 mt-0.5"
@@ -122,10 +160,22 @@ export default function WalletInput({ onSubmit, disabled = false }: WalletInputP
                   />
                 </svg>
                 <div>
-                  <p className="font-medium">Valid {detectedKeyType}</p>
-                  <p className="text-gray-600 mt-0.5">
-                    {getKeyTypeDescription(detectedKeyType)}
+                  <p className="font-medium">
+                    Valid {getWalletTypeDescription(walletInfo.walletType)}
                   </p>
+                  {walletInfo.bitcoinInfo && (
+                    <p className="text-gray-600 mt-0.5">
+                      {walletInfo.bitcoinInfo.type.toUpperCase()} -
+                      {walletInfo.bitcoinInfo.type === 'xpub' && ' Legacy (P2PKH)'}
+                      {walletInfo.bitcoinInfo.type === 'ypub' && ' Nested SegWit (P2SH-P2WPKH)'}
+                      {walletInfo.bitcoinInfo.type === 'zpub' && ' Native SegWit (P2WPKH)'}
+                    </p>
+                  )}
+                  {walletInfo.ethereumInfo && (
+                    <p className="text-gray-600 mt-0.5">
+                      Ethereum Mainnet Address
+                    </p>
+                  )}
                 </div>
               </div>
             ) : validationError ? (
@@ -164,12 +214,16 @@ export default function WalletInput({ onSubmit, disabled = false }: WalletInputP
       {/* Help text */}
       <div className="text-sm text-gray-500 space-y-1">
         <p>
-          <strong>Privacy Notice:</strong> Your extended public key never leaves your device
+          <strong>Privacy Notice:</strong> Your wallet information never leaves your device
           during validation. Balance checking is done through secure API calls.
         </p>
         <p>
-          <strong>Supported formats:</strong> xpub (Legacy), ypub (Nested SegWit), zpub (Native SegWit)
+          <strong>Supported formats:</strong>
         </p>
+        <ul className="ml-4 list-disc">
+          <li>Bitcoin: xpub (Legacy), ypub (Nested SegWit), zpub (Native SegWit)</li>
+          <li>Ethereum: Standard addresses starting with 0x</li>
+        </ul>
       </div>
     </form>
   );

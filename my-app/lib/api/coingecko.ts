@@ -1,5 +1,5 @@
 /**
- * CoinGecko API client for fetching Bitcoin price
+ * CoinGecko API client for fetching cryptocurrency prices
  * API Documentation: https://www.coingecko.com/en/api/documentation
  */
 
@@ -14,10 +14,27 @@ export interface BTCPrice {
 }
 
 /**
- * CoinGecko API response structure
+ * Ethereum price in AUD with timestamp
+ */
+export interface ETHPrice {
+  aud: number;
+  timestamp: number;
+}
+
+/**
+ * CoinGecko API response structure for Bitcoin
  */
 interface CoinGeckoResponse {
   bitcoin: {
+    aud: number;
+  };
+}
+
+/**
+ * CoinGecko API response structure for Ethereum
+ */
+interface CoinGeckoETHResponse {
+  ethereum: {
     aud: number;
   };
 }
@@ -27,6 +44,12 @@ interface CoinGeckoResponse {
  * Stores the last fetched price with timestamp
  */
 let priceCache: BTCPrice | null = null;
+
+/**
+ * In-memory cache for ETH price
+ * Stores the last fetched price with timestamp
+ */
+let ethPriceCache: ETHPrice | null = null;
 
 /**
  * Cache validity duration in milliseconds (60 seconds)
@@ -44,6 +67,21 @@ function isCacheValid(): boolean {
 
   const now = Date.now();
   const cacheAge = now - priceCache.timestamp;
+
+  return cacheAge < CACHE_DURATION;
+}
+
+/**
+ * Check if cached ETH price is still valid
+ * @returns True if cache exists and is not expired
+ */
+function isETHCacheValid(): boolean {
+  if (!ethPriceCache) {
+    return false;
+  }
+
+  const now = Date.now();
+  const cacheAge = now - ethPriceCache.timestamp;
 
   return cacheAge < CACHE_DURATION;
 }
@@ -107,6 +145,64 @@ export async function fetchBTCPrice(): Promise<BTCPrice> {
 }
 
 /**
+ * Fetch ETH/AUD exchange rate from CoinGecko API
+ * Implements short-term in-memory caching (60 seconds)
+ *
+ * @returns Ethereum price in AUD with timestamp
+ * @throws Error if API request fails
+ */
+export async function fetchETHPrice(): Promise<ETHPrice> {
+  // Return cached price if still valid
+  if (isETHCacheValid() && ethPriceCache) {
+    return ethPriceCache;
+  }
+
+  const url = `${API_CONFIG.coingecko.baseUrl}/simple/price?ids=ethereum&vs_currencies=aud`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+      },
+      signal: AbortSignal.timeout(API_CONFIG.timeout),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data: CoinGeckoETHResponse = await response.json();
+
+    // Validate response structure
+    if (!data.ethereum || typeof data.ethereum.aud !== 'number') {
+      throw new Error('Invalid response format from CoinGecko API');
+    }
+
+    // Create price object with current timestamp
+    const price: ETHPrice = {
+      aud: data.ethereum.aud,
+      timestamp: Date.now(),
+    };
+
+    // Update cache
+    ethPriceCache = price;
+
+    return price;
+  } catch (error) {
+    // If we have a cached price (even if expired), return it as fallback
+    if (ethPriceCache) {
+      console.warn('Failed to fetch fresh ETH price, using cached value:', error);
+      return ethPriceCache;
+    }
+
+    // No cached price available, throw error
+    console.error('Failed to fetch ETH price:', error);
+    throw new Error(`Failed to fetch ETH price: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+/**
  * Convert BTC amount to AUD
  *
  * @param btcAmount Amount in BTC
@@ -118,13 +214,24 @@ export function convertBTCToAUD(btcAmount: number, price: number): number {
 }
 
 /**
+ * Convert ETH amount to AUD
+ *
+ * @param ethAmount Amount in ETH
+ * @param price ETH price in AUD
+ * @returns Amount in AUD
+ */
+export function convertETHToAUD(ethAmount: number, price: number): number {
+  return ethAmount * price;
+}
+
+/**
  * Format currency amount for display
  *
  * @param amount Amount to format
- * @param currency Currency type (BTC or AUD)
+ * @param currency Currency type (BTC, ETH, or AUD)
  * @returns Formatted currency string
  */
-export function formatCurrency(amount: number, currency: 'BTC' | 'AUD'): string {
+export function formatCurrency(amount: number, currency: 'BTC' | 'ETH' | 'AUD'): string {
   if (currency === 'BTC') {
     // Format BTC with 8 decimal places, removing trailing zeros
     const formatted = amount.toFixed(8);
@@ -139,6 +246,20 @@ export function formatCurrency(amount: number, currency: 'BTC' | 'AUD'): string 
     }
 
     return `${trimmed} BTC`;
+  } else if (currency === 'ETH') {
+    // Format ETH with 6 decimal places, removing trailing zeros
+    const formatted = amount.toFixed(6);
+    const trimmed = formatted.replace(/\.?0+$/, '');
+
+    // Ensure at least 2 decimal places
+    const parts = trimmed.split('.');
+    if (parts.length === 1) {
+      return `${trimmed}.00 ETH`;
+    } else if (parts[1].length === 1) {
+      return `${trimmed}0 ETH`;
+    }
+
+    return `${trimmed} ETH`;
   } else {
     // Format AUD with 2 decimal places and thousand separators
     return new Intl.NumberFormat('en-AU', {
@@ -214,6 +335,18 @@ export async function fetchBTCPriceWithTimeout(timeoutMs: number): Promise<BTCPr
 export function satoshisToAUD(satoshis: number, price: number): number {
   const btc = satoshis / 100000000; // 1 BTC = 100,000,000 satoshis
   return convertBTCToAUD(btc, price);
+}
+
+/**
+ * Convert Wei to AUD
+ *
+ * @param wei Amount in Wei (as number or bigint)
+ * @param price ETH price in AUD
+ * @returns Amount in AUD
+ */
+export function weiToAUD(wei: number | bigint, price: number): number {
+  const eth = Number(wei) / 1e18; // 1 ETH = 10^18 Wei
+  return convertETHToAUD(eth, price);
 }
 
 /**
