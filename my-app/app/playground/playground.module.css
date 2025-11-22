@@ -938,22 +938,124 @@
   }
 }
 
+/* Success Popup Animation */
+@keyframes popup-bounce {
+  0% {
+    transform: translate(-50%, -50%) scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.1);
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+}
+
+/* Confetti Animations */
+@keyframes confetti-0 {
+  0% {
+    transform: translate(0, 0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-80px, 100px) rotate(360deg);
+    opacity: 0;
+  }
+}
+
+@keyframes confetti-1 {
+  0% {
+    transform: translate(0, 0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(80px, 120px) rotate(-360deg);
+    opacity: 0;
+  }
+}
+
+@keyframes confetti-2 {
+  0% {
+    transform: translate(0, 0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(40px, -60px) rotate(180deg);
+    opacity: 0;
+  }
+}
+
+@keyframes confetti-3 {
+  0% {
+    transform: translate(0, 0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-60px, -80px) rotate(-180deg);
+    opacity: 0;
+  }
+}
+
+@keyframes confetti-4 {
+  0% {
+    transform: translate(0, 0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(100px, 50px) rotate(270deg);
+    opacity: 0;
+  }
+}
+
+@keyframes confetti-5 {
+  0% {
+    transform: translate(0, 0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-100px, 70px) rotate(-270deg);
+    opacity: 0;
+  }
+}
+
 @media (max-width: 768px) {
   .root {
-    padding: 24px;
-    gap: 24px;
+    padding: 16px;
+    gap: 20px;
   }
   .header {
     flex-direction: column;
-    gap: 20px;
-    padding: 24px;
+    gap: 16px;
+    padding: 20px 16px;
+    align-items: stretch;
   }
   .title {
-    font-size: 36px;
+    font-size: 28px;
+    text-align: center;
+  }
+  .subtitle {
+    font-size: 16px;
+    text-align: center;
+  }
+  .subtitleSmall {
+    font-size: 14px;
+    text-align: center;
   }
   .balance {
     width: 100%;
+    min-width: auto;
     align-items: center;
+    padding: 20px 24px;
+  }
+  .balanceLabel {
+    font-size: 11px;
+    text-align: center;
+  }
+  .balanceValue {
+    font-size: 28px;
+    text-align: center;
   }
   .grid,
   .chartsLayout {
@@ -963,9 +1065,17 @@
   .addSymbolBar {
     flex-direction: column;
     align-items: stretch;
+    padding: 12px 16px;
   }
   .addSymbolButton {
     width: 100%;
+  }
+  .tickers,
+  .tradeArea,
+  .historyList,
+  .chartsSidebar,
+  .chartsMain {
+    padding: 20px 16px;
   }
 }
 
