@@ -1,6 +1,6 @@
 /**
  * Landing Page
- * Main landing page for Bitcoin Wallet Balance Checker
+ * Main landing page for Crypto Wallet Balance Checker
  */
 
 import Link from 'next/link';
@@ -12,11 +12,11 @@ export default function Home() {
       <section className="px-4 sm:px-6 lg:px-8 pt-20 pb-16">
         <div className="max-w-4xl mx-auto text-center">
           <h1 className="text-5xl sm:text-6xl font-bold text-gray-900 mb-6">
-            Check Your Bitcoin Balance{' '}
+            Check Your Crypto Balance{' '}
             <span className="text-blue-600">Privately</span>
           </h1>
           <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-            View your Bitcoin wallet balance instantly without compromising your privacy.
+            View your Bitcoin or Ethereum wallet balance instantly without compromising your privacy.
             No signup, no data storage, completely free.
           </p>
           <Link
@@ -122,11 +122,11 @@ export default function Home() {
 
       {/* Supported Formats Section */}
       <section className="px-4 sm:px-6 lg:px-8 py-16">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-6xl mx-auto">
           <h2 className="text-3xl font-bold text-gray-900 text-center mb-12">
             Supported Wallet Formats
           </h2>
-          <div className="grid md:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             {/* xpub */}
             <div className="bg-white rounded-lg shadow-lg p-6">
               <div className="text-center">
@@ -168,6 +168,20 @@ export default function Home() {
                 </p>
               </div>
             </div>
+
+            {/* Ethereum */}
+            <div className="bg-white rounded-lg shadow-lg p-6">
+              <div className="text-center">
+                <div className="inline-flex items-center justify-center w-12 h-12 bg-purple-100 rounded-full mb-4">
+                  <span className="text-2xl font-bold text-purple-600">Ξ</span>
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">Ethereum</h3>
+                <p className="text-sm text-gray-600 mb-2">Public Address</p>
+                <p className="text-xs text-gray-500">
+                  Addresses starting with <span className="font-mono font-semibold">0x</span>
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -186,11 +200,11 @@ export default function Home() {
               </div>
               <div className="flex-1">
                 <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                  Enter Your Extended Public Key
+                  Enter Your Wallet Information
                 </h3>
                 <p className="text-gray-600">
-                  Paste your xpub, ypub, or zpub key. Our tool automatically detects the format
-                  and validates it for you.
+                  Paste your Bitcoin extended public key (xpub/ypub/zpub) or Ethereum address (0x...).
+                  Our tool automatically detects the format and validates it for you.
                 </p>
               </div>
             </div>
@@ -202,11 +216,11 @@ export default function Home() {
               </div>
               <div className="flex-1">
                 <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                  Derive Addresses
+                  Process & Validate
                 </h3>
                 <p className="text-gray-600">
-                  We derive 40 Bitcoin addresses (20 receiving + 20 change) from your key using
-                  industry-standard BIP32/44/49/84 protocols.
+                  For Bitcoin, we derive addresses using BIP32/44/49/84 protocols.
+                  For Ethereum, we validate the address checksum (EIP-55).
                 </p>
               </div>
             </div>
@@ -221,8 +235,8 @@ export default function Home() {
                   Check Blockchain
                 </h3>
                 <p className="text-gray-600">
-                  Each address is checked against the Bitcoin blockchain using the Blockstream API
-                  to retrieve current balances.
+                  Balances are fetched from the blockchain using Blockstream API (Bitcoin) or
+                  Ethereum RPC nodes (Ethereum).
                 </p>
               </div>
             </div>
@@ -237,8 +251,8 @@ export default function Home() {
                   View Results
                 </h3>
                 <p className="text-gray-600">
-                  Your total balance is displayed in both BTC and AUD, with the current exchange
-                  rate fetched from CoinGecko.
+                  Your total balance is displayed in crypto (BTC or ETH) and AUD, with current
+                  exchange rates fetched from CoinGecko.
                 </p>
               </div>
             </div>
@@ -384,8 +398,8 @@ export default function Home() {
               </summary>
               <p className="mt-4 text-gray-600">
                 An extended public key (xpub, ypub, or zpub) is a master key that can derive all
-                public addresses in your Bitcoin wallet. It allows viewing of addresses and balances
-                without exposing your private keys or ability to spend funds.
+                public addresses in your Bitcoin wallet. For Ethereum, you provide a direct public address.
+                Both allow viewing of balances without exposing private keys or ability to spend funds.
               </p>
             </details>
 
@@ -442,7 +456,7 @@ export default function Home() {
             {/* FAQ 4 */}
             <details className="bg-white rounded-lg shadow-md p-6 cursor-pointer group">
               <summary className="font-semibold text-gray-900 text-lg list-none flex items-center justify-between">
-                What's the difference between xpub, ypub, and zpub?
+                What formats are supported?
                 <svg
                   className="w-5 h-5 text-gray-500 transition-transform group-open:rotate-180"
                   fill="none"
@@ -458,9 +472,9 @@ export default function Home() {
                 </svg>
               </summary>
               <p className="mt-4 text-gray-600">
-                These represent different Bitcoin address formats: xpub is for Legacy addresses (starting
-                with 1), ypub is for Nested SegWit addresses (starting with 3), and zpub is for Native
-                SegWit addresses (starting with bc1). Each has different fee structures and compatibility.
+                For Bitcoin: xpub (Legacy, addresses start with 1), ypub (Nested SegWit, addresses start with 3),
+                and zpub (Native SegWit, addresses start with bc1). For Ethereum: standard addresses starting with 0x.
+                The tool auto-detects which format you're using.
               </p>
             </details>
 
@@ -483,8 +497,8 @@ export default function Home() {
                 </svg>
               </summary>
               <p className="mt-4 text-gray-600">
-                Balance data is fetched from Blockstream's public API, which queries the Bitcoin
-                blockchain. Price data (BTC/AUD) comes from CoinGecko's free API. Both are reputable
+                Balance data is fetched from Blockstream's API (Bitcoin) or Ethereum RPC nodes (Ethereum).
+                Price data (BTC/AUD and ETH/AUD) comes from CoinGecko's free API. All are reputable
                 and widely-used sources in the cryptocurrency ecosystem.
               </p>
             </details>
@@ -530,7 +544,7 @@ export default function Home() {
           official wallet software.
         </p>
         <p className="text-xs mt-2">
-          Built with Next.js • Uses Blockstream API & CoinGecko API
+          Built with Next.js • Uses Blockstream API, Ethereum RPC & CoinGecko API
         </p>
       </footer>
     </div>
