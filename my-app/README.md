@@ -34,3 +34,12 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Sandbox Playground (BTC & ASX)
+
+This project includes a simple client-side sandbox playground for experimenting with play-money trades in Bitcoin (BTC) and a couple of ASX stocks (CBA, BHP).
+
+- Start the dev server with `npm run dev` and open `http://localhost:3000/playground`.
+- The playground uses a mock price feed (random-walk) and persists play balance, holdings and transaction history in `localStorage`.
+
+It's designed as a lightweight demo UI to prototype trading flows — feel free to extend with real data feeds or order simulation logic.
