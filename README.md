@@ -430,7 +430,7 @@ This project demonstrates modern full-stack development with:
 
 ## 👥 Team
 
-Built with ❤️ by the team
+Built with ❤️ by the team Santa Claude
 
 ---
 
