@@ -8,7 +8,7 @@ import * as bitcoin from 'bitcoinjs-lib';
 import * as ecc from 'tiny-secp256k1';
 import { KeyType, DerivedAddress } from './types';
 import { convertToXpub } from './convertKey';
-import { GAP_LIMIT, CHAINS } from './constants';
+import { GAP_LIMIT, CHAINS, MAX_CONSECUTIVE_API_ERRORS } from './constants';
 import { deriveAddress } from './deriveAddresses';
 import { hasTransactions } from '../api/blockstream';
 
@@ -77,6 +77,7 @@ export async function scanAddressesWithGapLimit(
  * @param gapLimit Gap limit
  * @param maxAddresses Maximum addresses to scan
  * @returns Array of derived addresses for this chain
+ * @throws Error if 3 consecutive API failures occur
  */
 async function scanChain(
   node: BIP32Interface,
@@ -88,6 +89,7 @@ async function scanChain(
 ): Promise<DerivedAddress[]> {
   const addresses: DerivedAddress[] = [];
   let consecutiveUnused = 0;
+  let consecutiveErrors = 0;
   let index = 0;
 
   while (index < maxAddresses && consecutiveUnused < gapLimit) {
@@ -99,15 +101,30 @@ async function scanChain(
     try {
       const used = await hasTransactions(derivedAddress.address);
 
+      // Success - reset error counter
+      consecutiveErrors = 0;
+
       if (used) {
-        // Address has transactions, reset counter
+        // Address has transactions, reset unused counter
         consecutiveUnused = 0;
       } else {
-        // Address is unused, increment counter
+        // Address is unused, increment unused counter
         consecutiveUnused++;
       }
     } catch (error) {
-      // On error, treat as unused and continue
+      // Track consecutive API errors
+      consecutiveErrors++;
+
+      // Fail fast after 3 consecutive API failures
+      if (consecutiveErrors >= MAX_CONSECUTIVE_API_ERRORS) {
+        const chainType = chain === 0 ? 'external' : 'internal';
+        throw new Error(
+          `Failed to check address balances after ${MAX_CONSECUTIVE_API_ERRORS} consecutive API errors on ${chainType} chain at index ${index}. ` +
+          `Please check your network connection and try again. Error: ${error instanceof Error ? error.message : 'Unknown error'}`
+        );
+      }
+
+      // Treat as unused and continue (will fail if this happens 3 times in a row)
       consecutiveUnused++;
     }
 

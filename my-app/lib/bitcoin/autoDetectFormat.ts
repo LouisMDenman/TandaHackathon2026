@@ -99,10 +99,17 @@ export async function autoDetectAddressFormat(
     firstAddresses[format.type] = firstAddress.address;
 
     // Check if this address has transactions
-    const used = await hasTransactions(firstAddress.address);
+    try {
+      const used = await hasTransactions(firstAddress.address);
 
-    if (used) {
-      formatsWithTransactions.push(format.type);
+      if (used) {
+        formatsWithTransactions.push(format.type);
+      }
+    } catch (error) {
+      // Treat API errors as "no transactions" for auto-detection
+      // This allows the process to continue even if one format check fails
+      // The error will be logged but won't block auto-detection
+      console.warn(`Failed to check format ${format.type} at address ${firstAddress.address}:`, error);
     }
   }
 

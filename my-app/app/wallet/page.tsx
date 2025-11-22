@@ -36,6 +36,7 @@ export default function WalletPage() {
   const [totalSatoshis, setTotalSatoshis] = useState<number>(0);
   const [totalAUD, setTotalAUD] = useState<number>(0);
   const [addressesScanned, setAddressesScanned] = useState<number>(0);
+  const [addressesWithErrors, setAddressesWithErrors] = useState<number>(0);
   const [timestamp, setTimestamp] = useState<number>(0);
 
   // Error handling
@@ -82,13 +83,14 @@ export default function WalletPage() {
 
       // Step 3: Fetch balances
       setLoadingStatus('Checking balances...');
-      const totalSats = await calculateTotalBalance(addressList);
-      setTotalSatoshis(totalSats);
+      const balanceResult = await calculateTotalBalance(addressList);
+      setTotalSatoshis(balanceResult.totalBalance);
+      setAddressesWithErrors(balanceResult.addressesWithErrors);
 
       // Step 4: Fetch price
       setLoadingStatus('Fetching price...');
       const priceData = await fetchBTCPrice();
-      const audValue = satoshisToAUD(totalSats, priceData.aud);
+      const audValue = satoshisToAUD(balanceResult.totalBalance, priceData.aud);
       setTotalAUD(audValue);
 
       // Success! Show results
@@ -131,6 +133,7 @@ export default function WalletPage() {
     setTotalSatoshis(0);
     setTotalAUD(0);
     setAddressesScanned(0);
+    setAddressesWithErrors(0);
     setTimestamp(0);
     setError('');
     setErrorType('unknown');
@@ -174,6 +177,7 @@ export default function WalletPage() {
               totalSatoshis={totalSatoshis}
               totalAUD={totalAUD}
               addressesScanned={addressesScanned}
+              addressesWithErrors={addressesWithErrors}
               timestamp={timestamp}
               onReset={handleReset}
             />
@@ -216,12 +220,17 @@ export default function WalletPage() {
               view addresses and balances. They cannot be used to spend or access your funds.
             </p>
             <p>
-              <strong>Public APIs:</strong> Balance data is fetched from public blockchain
-              APIs (Blockstream) and price data from CoinGecko. No authentication required.
+              <strong>Third-Party APIs:</strong> Balance data is fetched from public blockchain
+              APIs (Blockstream) and price data from CoinGecko. During auto-detection, we check
+              up to 3 derived addresses on-chain to determine your wallet's address format. These
+              API requests may be logged by the provider (including your IP address and the addresses
+              checked). Note that Bitcoin addresses and their balances are public information already
+              visible on the blockchain to anyone.
             </p>
             <p>
               <strong>Client-Side Processing:</strong> All cryptographic operations
-              (address derivation) happen in your browser. Your keys are never sent to our servers.
+              (address derivation) happen in your browser. Your extended public keys are never
+              sent to our servers.
             </p>
           </div>
         </div>
@@ -238,7 +247,8 @@ export default function WalletPage() {
                 <h4 className="font-medium text-gray-900">Enter Your Extended Public Key</h4>
                 <p className="text-sm text-gray-600">
                   Paste your xpub (Legacy), ypub (Nested SegWit), or zpub (Native SegWit) key.
-                  The app will auto-detect the format.
+                  The app will auto-detect the correct format by checking which address type has
+                  been used (this checks 3 addresses on the blockchain via Blockstream's API).
                 </p>
               </div>
             </div>
@@ -250,8 +260,8 @@ export default function WalletPage() {
               <div>
                 <h4 className="font-medium text-gray-900">Derive Addresses</h4>
                 <p className="text-sm text-gray-600">
-                  We derive 40 addresses (20 external + 20 internal) from your extended key
-                  using industry-standard BIP32/44/49/84 derivation paths.
+                  We derive addresses from your extended key using industry-standard BIP32/44/49/84
+                  derivation paths, scanning until we find 20 consecutive unused addresses (gap limit).
                 </p>
               </div>
             </div>

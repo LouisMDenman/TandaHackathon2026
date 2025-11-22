@@ -58,6 +58,12 @@ export const ADDRESS_SCAN_LIMIT = 20;
 export const GAP_LIMIT = 20;
 
 /**
+ * Maximum consecutive API errors before failing the scan
+ * Prevents silent failures when the API is down or rate limiting
+ */
+export const MAX_CONSECUTIVE_API_ERRORS = 3;
+
+/**
  * Total addresses scanned (external + internal)
  */
 export const TOTAL_ADDRESSES_SCANNED = ADDRESS_SCAN_LIMIT * 2; // 40 total

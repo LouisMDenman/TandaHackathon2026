@@ -11,6 +11,7 @@ interface BalanceDisplayProps {
   totalSatoshis: number;
   totalAUD: number;
   addressesScanned: number;
+  addressesWithErrors: number;
   timestamp: number;
   onReset: () => void;
 }
@@ -19,6 +20,7 @@ export default function BalanceDisplay({
   totalSatoshis,
   totalAUD,
   addressesScanned,
+  addressesWithErrors,
   timestamp,
   onReset,
 }: BalanceDisplayProps) {
@@ -80,7 +82,33 @@ export default function BalanceDisplay({
           </div>
         </div>
 
-        {/* Info box */}
+        {/* Error warning - shown if some addresses failed */}
+        {addressesWithErrors > 0 && (
+          <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+            <div className="flex items-start space-x-2">
+              <svg
+                className="w-5 h-5 text-orange-600 flex-shrink-0 mt-0.5"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              <div className="text-sm text-orange-800">
+                <p className="font-medium">Partial Results - API Issues Detected</p>
+                <p className="mt-1">
+                  {addressesWithErrors} {addressesWithErrors === 1 ? 'address' : 'addresses'} could not be checked due to API errors.
+                  The balance shown may be incomplete. Please try again later for complete results.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Info box - shown if balance is zero */}
         {totalSatoshis === 0 && (
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
             <div className="flex items-start space-x-2">
@@ -98,7 +126,15 @@ export default function BalanceDisplay({
               <div className="text-sm text-yellow-800">
                 <p className="font-medium">No balance found</p>
                 <p className="mt-1">
-                  This wallet has no current balance. It may be empty or all funds have been spent.
+                  {addressesWithErrors > 0 ? (
+                    <>
+                      The addresses that were successfully checked have no current balance. However, {addressesWithErrors} {addressesWithErrors === 1 ? 'address' : 'addresses'} could not be checked - there may be funds in those addresses.
+                    </>
+                  ) : (
+                    <>
+                      This wallet has no current balance. It may be empty or all funds have been spent.
+                    </>
+                  )}
                 </p>
               </div>
             </div>
