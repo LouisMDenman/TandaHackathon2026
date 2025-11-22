@@ -12,10 +12,11 @@ import { deriveAddresses } from '@/lib/bitcoin/deriveAddresses';
 import { scanAddressesWithGapLimit } from '@/lib/bitcoin/scanAddresses';
 import { autoDetectAddressFormat } from '@/lib/bitcoin/autoDetectFormat';
 import { calculateTotalBalance } from '@/lib/api/blockstream';
-import { fetchBTCPrice, fetchETHPrice, fetchSOLPrice, fetchXRPPrice } from '@/lib/api/coingecko';
+import { fetchBTCPrice, fetchETHPrice, fetchSOLPrice, fetchXRPPrice, fetchUSDTPrice } from '@/lib/api/coingecko';
 import { fetchEthBalance } from '@/lib/api/ethereum';
 import { fetchSolBalance } from '@/lib/api/solana';
 import { fetchXrpBalance } from '@/lib/api/xrp';
+import { fetchTetherBalance } from '@/lib/api/tether';
 import { satoshisToAUD } from '@/lib/utils/format';
 import { NETWORKS } from '@/lib/bitcoin/constants';
 import { validateWallet } from '@/lib/wallet/detectWalletType';
@@ -26,7 +27,7 @@ import ErrorDisplay from '@/components/ErrorDisplay';
 
 type ViewState = 'input' | 'loading' | 'results' | 'error';
 type ErrorType = 'validation' | 'network' | 'api' | 'unknown';
-type CryptoType = 'BTC' | 'ETH' | 'SOL' | 'XRP';
+type CryptoType = 'BTC' | 'ETH' | 'SOL' | 'XRP' | 'USDT';
 
 export default function WalletPage() {
   // State management
@@ -53,7 +54,7 @@ export default function WalletPage() {
   /**
    * Handle wallet balance check submission
    */
-  const handleSubmit = async (input: string, type: KeyType) => {
+  const handleSubmit = async (input: string, type: KeyType, tokenType?: 'ETH' | 'USDT') => {
     setExtendedKey(input);
     setKeyType(type);
     setViewState('loading');
@@ -73,8 +74,12 @@ export default function WalletPage() {
         // Bitcoin flow
         await handleBitcoinCheck(input, info.bitcoinInfo.type);
       } else if (info.walletType === 'ethereum' && info.ethereumInfo) {
-        // Ethereum flow
-        await handleEthereumCheck(info.ethereumInfo.address);
+        // Ethereum flow - check if user wants ETH or USDT
+        if (tokenType === 'USDT') {
+          await handleTetherCheck(info.ethereumInfo.address);
+        } else {
+          await handleEthereumCheck(info.ethereumInfo.address);
+        }
       } else if (info.walletType === 'solana' && info.solanaInfo) {
         // Solana flow
         await handleSolanaCheck(info.solanaInfo.address);
@@ -251,6 +256,35 @@ export default function WalletPage() {
   };
 
   /**
+   * Handle Tether (USDT) wallet check
+   */
+  const handleTetherCheck = async (address: string) => {
+    setCryptoType('USDT');
+
+    // Step 1: Fetch USDT balance
+    setLoadingStatus('Checking Tether (USDT) balance...');
+    const balanceResult = await fetchTetherBalance(address);
+
+    if (balanceResult.status === 'error') {
+      throw new Error(balanceResult.error || 'Failed to fetch USDT balance');
+    }
+
+    setTotalCrypto(balanceResult.balanceInUsdt);
+    setAddressesScanned(1); // Single address
+    setAddressesWithErrors(0);
+
+    // Step 2: Fetch USDT price
+    setLoadingStatus('Fetching USDT price...');
+    const priceData = await fetchUSDTPrice();
+    const audValue = balanceResult.balanceInUsdt * priceData.aud;
+    setTotalAUD(audValue);
+
+    // Success! Show results
+    setTimestamp(Date.now());
+    setViewState('results');
+  };
+
+  /**
    * Reset to initial state
    */
   const handleReset = () => {
@@ -301,9 +335,9 @@ export default function WalletPage() {
               Wallet Balance Checker
             </h1>
             <p className="text-xl text-slate-300 max-w-2xl mx-auto leading-relaxed">
-              Check your Bitcoin wallet balance <span className="text-cyan-400 font-bold">privately</span> and{" "}
+              Check your crypto wallet balance <span className="text-cyan-400 font-bold">privately</span> and{" "}
               <span className="text-purple-400 font-bold">securely</span>.
-              No data is stored, all checks are done in real-time.
+              Supports Bitcoin, Ethereum, Solana, XRP, and Tether (USDT). No data is stored, all checks are done in real-time.
             </p>
           </div>
 
