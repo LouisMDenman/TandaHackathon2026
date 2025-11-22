@@ -14,14 +14,6 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Crypto Tools - Wallet Checker & Trading Playground",
   description: "Check your Bitcoin or Ethereum wallet balance and practice trading with our paper trading simulator",
-  icons: {
-    icon: [
-      {
-        url: '/bitcoin-icon.svg',
-        type: 'image/svg+xml',
-      },
-    ],
-  },
 };
 
 export default function RootLayout({
