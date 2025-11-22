@@ -17,6 +17,7 @@ export default function CryptoAssistant() {
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showScrollTop, setShowScrollTop] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const handleToggle = () => {
@@ -27,6 +28,24 @@ export default function CryptoAssistant() {
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Show scroll-to-top button when user scrolls down
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 300) {
+        setShowScrollTop(true);
+      } else {
+        setShowScrollTop(false);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   useEffect(() => {
     scrollToBottom();
@@ -56,19 +75,24 @@ export default function CryptoAssistant() {
         }),
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to get response');
-      }
-
       const data = await response.json();
+
+      if (!response.ok) {
+        console.error('API Error:', data);
+        const errorMsg = data.details 
+          ? `Error: ${data.error}. ${data.details}` 
+          : data.error || 'Failed to get response';
+        throw new Error(errorMsg);
+      }
       
       // Add assistant response
       setMessages([...newMessages, { role: 'assistant', content: data.reply }]);
     } catch (error) {
       console.error('Error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       setMessages([...newMessages, { 
         role: 'assistant', 
-        content: 'Sorry, I encountered an error. Please try again.' 
+        content: `Sorry, I encountered an error: ${errorMessage}. Please check if the API key is configured in Netlify environment variables.` 
       }]);
     } finally {
       setIsLoading(false);
@@ -84,6 +108,35 @@ export default function CryptoAssistant() {
 
   return (
     <>
+      {/* Scroll to Top Button */}
+      {showScrollTop && (
+        <button
+          onClick={scrollToTop}
+          className="fixed bottom-24 right-6 w-16 h-16 rounded-full bg-gradient-to-r from-purple-500 to-pink-600 text-white shadow-2xl hover:shadow-purple-500/50 transition-all duration-300 hover:scale-110 flex items-center justify-center group"
+          style={{
+            boxShadow: '0 0 40px rgba(139, 92, 246, 0.6), 0 0 80px rgba(139, 92, 246, 0.4)',
+            zIndex: 9998,
+            pointerEvents: 'auto',
+            cursor: 'pointer',
+          }}
+          aria-label="Scroll to top"
+        >
+          <svg 
+            className="w-8 h-8 group-hover:scale-110 transition-transform" 
+            fill="none" 
+            stroke="currentColor" 
+            viewBox="0 0 24 24"
+          >
+            <path 
+              strokeLinecap="round" 
+              strokeLinejoin="round" 
+              strokeWidth={3} 
+              d="M5 15l7-7 7 7" 
+            />
+          </svg>
+        </button>
+      )}
+
       {/* Floating Chat Button */}
       <button
         onClick={handleToggle}
